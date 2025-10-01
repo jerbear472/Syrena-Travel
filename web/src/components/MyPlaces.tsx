@@ -92,11 +92,20 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
     { id: 'favorites', name: 'Top Rated', count: savedPlaces.filter(p => p.rating >= 4).length }
   ];
 
+  // Get unique cities/locations (using a simple approach based on lat/lng proximity)
+  const getUniqueCities = () => {
+    const cities = new Map();
+    savedPlaces.forEach(place => {
+      // Round coordinates to approximate city-level grouping (about 0.1 degrees ~ 11km)
+      const cityKey = `${Math.round(place.lat * 10) / 10},${Math.round(place.lng * 10) / 10}`;
+      cities.set(cityKey, true);
+    });
+    return cities.size;
+  };
+
   const stats = [
     { label: 'Total Places', value: savedPlaces.length.toString(), icon: MapPin },
-    { label: 'Categories', value: [...new Set(savedPlaces.map(p => p.category))].length.toString(), icon: Globe2 },
-    { label: 'Avg Rating', value: savedPlaces.length ? (savedPlaces.reduce((sum, p) => sum + (p.rating || 0), 0) / savedPlaces.length).toFixed(1) : '0', icon: Star },
-    { label: 'Top Rated', value: savedPlaces.filter(p => p.rating >= 4).length.toString(), icon: Heart }
+    { label: 'Cities', value: getUniqueCities().toString(), icon: Globe2 }
   ];
 
   const sortOptions = [
