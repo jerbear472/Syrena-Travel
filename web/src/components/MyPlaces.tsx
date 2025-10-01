@@ -17,7 +17,7 @@ interface MyPlacesProps {
 }
 
 export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSidebar, onEditProfile }: MyPlacesProps) {
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFilter, setSelectedFilter] = useState('recent');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent');
@@ -97,7 +97,6 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
   );
 
   const filters = [
-    { id: 'all', name: 'All Places', count: savedPlaces.length },
     { id: 'recent', name: 'Recently Added', count: savedPlaces.filter(p => {
       const dayAgo = new Date();
       dayAgo.setDate(dayAgo.getDate() - 7);
