@@ -66,6 +66,8 @@ export default function ExploreScreen() {
   const [showFriendsSelector, setShowFriendsSelector] = useState(false);
   const [friends, setFriends] = useState<any[]>([]);
   const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
+  const [odysseyIcon, setOdysseyIcon] = useState<string | null>(null);
+  const [savingIcon, setSavingIcon] = useState(false);
 
   useEffect(() => {
     getCurrentLocation();
@@ -98,7 +100,13 @@ export default function ExploreScreen() {
     try {
       const { data, error } = await supabase
         .from('friendships')
-        .select('*, friend:profiles!friendships_friend_id_fkey(id, email)')
+        .select(`
+          *,
+          friend:friend_id (
+            id,
+            email
+          )
+        `)
         .eq('user_id', userId)
         .eq('status', 'accepted');
 

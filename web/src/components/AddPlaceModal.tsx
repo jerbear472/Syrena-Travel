@@ -112,7 +112,6 @@ export default function AddPlaceModal({
         category: selectedCategory,
         lat: latitude,
         lng: longitude,
-        price_level: priceLevel > 0 ? priceLevel : null,
         created_by: user.id,
         visit_count: 0
       };

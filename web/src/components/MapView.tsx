@@ -528,32 +528,13 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
       let iconConfig;
       if (odysseyIcon) {
-        // Use odyssey icon with white border - create SVG wrapper
-        const svg = `
-          <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <clipPath id="clip-circle-${place.id}">
-                <circle cx="30" cy="30" r="26"/>
-              </clipPath>
-              <filter id="shadow-${place.id}" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
-              </filter>
-            </defs>
-            <circle cx="30" cy="30" r="28" fill="white" filter="url(#shadow-${place.id})"/>
-            <image
-              href="/avatars/${odysseyIcon}"
-              x="4" y="4"
-              width="52" height="52"
-              clip-path="url(#clip-circle-${place.id})"
-            />
-          </svg>
-        `;
-        const encodedSvg = `data:image/svg+xml;base64,${btoa(svg)}`;
-
+        // Use odyssey icon directly
         iconConfig = {
-          url: encodedSvg,
+          url: `/avatars/${odysseyIcon}`,
           scaledSize: new google.maps.Size(60, 60),
-          anchor: new google.maps.Point(30, 30)
+          anchor: new google.maps.Point(30, 30),
+          // Make it circular by using CSS in the marker
+          // Google Maps will handle the image as-is
         };
       } else {
         // Default to lyre icon
