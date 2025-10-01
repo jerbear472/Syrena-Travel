@@ -81,6 +81,8 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   const [showOnlyFriends, setShowOnlyFriends] = useState(false);
   const [markerAnimation, setMarkerAnimation] = useState({ scale: 1, opacity: 1 });
   const [userOdysseyIcon, setUserOdysseyIcon] = useState<string | null>(null);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -154,7 +156,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     if (isLoaded && map) {
       loadAllPlaces();
     }
-  }, [isLoaded, map, isAuthenticated, showOnlyFriends]);
+  }, [isLoaded, map, isAuthenticated, showOnlyFriends, selectedFriendId]);
 
   // Update markers when map or saved places change (but NOT on zoom changes to prevent flashing)
   useEffect(() => {
@@ -401,7 +403,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     console.log('Fetching places for user:', user.id, 'showOnlyFriends:', showOnlyFriends);
 
     try {
-      if (showOnlyFriends) {
+      if (showOnlyFriends || selectedFriendId) {
         // Get user's accepted friends
         const { data: friendships, error: friendError } = await supabase
           .from('friendships')
@@ -422,17 +424,29 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
         console.log('Friend IDs:', friendIds);
 
+        // Store friends list for the dropdown
+        if (friendIds.length > 0) {
+          const { data: friendsData } = await supabase
+            .from('profiles')
+            .select('id, username, display_name, odyssey_icon')
+            .in('id', friendIds);
+          setFriends(friendsData || []);
+        }
+
         if (friendIds.length === 0) {
           // No friends, show empty
           setSavedPlaces([]);
           return;
         }
 
+        // Filter by selected friend if one is chosen
+        const targetFriendIds = selectedFriendId ? [selectedFriendId] : friendIds;
+
         // Fetch places from friends
         const { data: placesData, error: placesError } = await supabase
           .from('places')
           .select('*')
-          .in('user_id', friendIds)
+          .in('user_id', targetFriendIds)
           .order('created_at', { ascending: false });
 
         if (placesError) {
@@ -440,11 +454,11 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           return;
         }
 
-        // Fetch profiles for all friends
+        // Fetch profiles for target friends
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, odyssey_icon')
-          .in('id', friendIds);
+          .in('id', targetFriendIds);
 
         console.log('Loaded friends places:', placesData?.length || 0);
         console.log('Loaded friend profiles:', profilesData?.length || 0);
@@ -780,19 +794,50 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         </button>
       )}
 
-      {/* Friend filter button */}
+      {/* Friend filter section */}
       {isAuthenticated && (
-        <button
-          onClick={() => setShowOnlyFriends(!showOnlyFriends)}
-          className={`absolute top-40 right-3 p-3 rounded-lg shadow-lg hover:shadow-xl transition-all ${
-            showOnlyFriends
-              ? 'bg-midnight-blue text-cream'
-              : 'bg-white text-midnight-blue hover:bg-gray-50'
-          }`}
-          title={showOnlyFriends ? "Show my places" : "Show friends' places"}
-        >
-          <Users className={`w-5 h-5 ${showOnlyFriends ? 'text-cream' : 'text-midnight-blue'}`} />
-        </button>
+        <div className="absolute top-40 right-3 flex flex-col gap-2">
+          {/* My Places / All Friends toggle */}
+          <button
+            onClick={() => {
+              setShowOnlyFriends(!showOnlyFriends);
+              setSelectedFriendId(null); // Reset friend selection when toggling
+            }}
+            className={`p-3 rounded-lg shadow-lg hover:shadow-xl transition-all ${
+              showOnlyFriends || selectedFriendId
+                ? 'bg-midnight-blue text-cream'
+                : 'bg-white text-midnight-blue hover:bg-gray-50'
+            }`}
+            title={showOnlyFriends || selectedFriendId ? "Show my places" : "Show friends' places"}
+          >
+            <Users className={`w-5 h-5 ${showOnlyFriends || selectedFriendId ? 'text-cream' : 'text-midnight-blue'}`} />
+          </button>
+
+          {/* Friend selector dropdown */}
+          {(showOnlyFriends || selectedFriendId) && friends.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg p-2 max-h-64 overflow-y-auto">
+              <button
+                onClick={() => setSelectedFriendId(null)}
+                className={`w-full text-left px-3 py-2 rounded hover:bg-sand transition-colors text-sm ${
+                  !selectedFriendId ? 'bg-sand font-semibold' : ''
+                }`}
+              >
+                All Friends
+              </button>
+              {friends.map((friend) => (
+                <button
+                  key={friend.id}
+                  onClick={() => setSelectedFriendId(friend.id)}
+                  className={`w-full text-left px-3 py-2 rounded hover:bg-sand transition-colors text-sm ${
+                    selectedFriendId === friend.id ? 'bg-sand font-semibold' : ''
+                  }`}
+                >
+                  {friend.display_name || friend.username}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Add Place Modal */}
