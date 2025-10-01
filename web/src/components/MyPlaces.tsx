@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import {
-  MapPin, Star, Clock, Heart, Grid3x3, List, Search,
+  MapPin, Clock, Heart, Grid3x3, List, Search,
   MoreVertical, Globe2, TrendingUp, ChevronDown, Filter,
   Plus, Utensils, Coffee, Camera, Mountain, ShoppingBag, Hotel, Trash2,
-  Building2, Gem, Users, MoreHorizontal, Menu, Zap
+  Building2, Gem, Users, MoreHorizontal, Menu, Zap, Eye
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
@@ -347,14 +347,11 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                     </p>
                   )}
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          size={14}
-                          className={i < place.rating ? 'text-warning fill-warning' : 'text-warm-stone'}
-                        />
-                      ))}
+                    <div className="flex items-center gap-1.5">
+                      <Eye size={16} className="text-ocean-depth" />
+                      <span className="text-sm font-serif font-medium text-midnight-blue">
+                        {place.visit_count || 0} {place.visit_count === 1 ? 'visit' : 'visits'}
+                      </span>
                     </div>
                     <span className="text-xs text-terracotta italic">
                       {new Date(place.created_at).toLocaleDateString()}
@@ -394,14 +391,11 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                       )}
                       <div className="flex items-center gap-4 text-sm">
                         <span className="text-terracotta capitalize italic">{place.category}</span>
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              size={12}
-                              className={i < place.rating ? 'text-warning fill-warning' : 'text-warm-stone'}
-                            />
-                          ))}
+                        <div className="flex items-center gap-1.5">
+                          <Eye size={14} className="text-ocean-depth" />
+                          <span className="text-sm font-serif font-medium text-midnight-blue">
+                            {place.visit_count || 0}
+                          </span>
                         </div>
                         <span className="text-xs text-terracotta italic">
                           {new Date(place.created_at).toLocaleDateString()}

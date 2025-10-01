@@ -418,7 +418,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           .from('places')
           .select(`
             *,
-            profiles!places_created_by_fkey (
+            profiles:created_by (
               odyssey_icon
             )
           `)
@@ -445,7 +445,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           .from('places')
           .select(`
             *,
-            profiles!places_created_by_fkey (
+            profiles:created_by (
               odyssey_icon
             )
           `)
