@@ -8,11 +8,13 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { supabase } from '../lib/supabase';
 import theme from '../theme';
+import { PlaceCardSkeleton } from '../components/SkeletonLoader';
 
 interface Place {
   id: string;
@@ -29,6 +31,7 @@ interface Place {
 export default function MyPlacesScreen({ navigation, route }: any) {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [viewingFriend, setViewingFriend] = useState<{id: string; name: string} | null>(null);
@@ -119,6 +122,19 @@ export default function MyPlacesScreen({ navigation, route }: any) {
       console.error('Error loading friend places:', error.message || String(error));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (viewingFriend) {
+        await loadFriendPlaces(viewingFriend.id);
+      } else {
+        await loadMyPlaces();
+      }
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -235,12 +251,21 @@ export default function MyPlacesScreen({ navigation, route }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
-          <Text style={styles.loadingText}>Loading places...</Text>
+      <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+          <View style={styles.header}>
+            <Text style={styles.title}>
+              {viewingFriend ? viewingFriend.name : 'My Places'}
+            </Text>
+          </View>
+        </SafeAreaView>
+        <View style={styles.content}>
+          <PlaceCardSkeleton />
+          <PlaceCardSkeleton />
+          <PlaceCardSkeleton />
+          <PlaceCardSkeleton />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -302,6 +327,14 @@ export default function MyPlacesScreen({ navigation, route }: any) {
           renderItem={renderPlace}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.midnightBlue}
+              colors={[theme.colors.midnightBlue]}
+            />
+          }
         />
       )}
 

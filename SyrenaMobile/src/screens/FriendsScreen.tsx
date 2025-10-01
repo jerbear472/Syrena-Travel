@@ -9,11 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { supabase } from '../lib/supabase';
 import theme from '../theme';
+import { FriendCardSkeleton } from '../components/SkeletonLoader';
 
 interface Friend {
   id: string;
@@ -33,7 +35,7 @@ interface PendingRequest {
   };
 }
 
-export default function FriendsScreen() {
+export default function FriendsScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
@@ -41,6 +43,7 @@ export default function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadFriendsData();
@@ -49,11 +52,15 @@ export default function FriendsScreen() {
   const loadFriendsData = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.log('No user authenticated');
+        return;
+      }
 
       // Load accepted friends
-      const { data: friendsData } = await supabase
+      const { data: friendsData, error: friendsError } = await supabase
         .from('friendships')
         .select(`
           *,
@@ -62,6 +69,13 @@ export default function FriendsScreen() {
         `)
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
         .eq('status', 'accepted');
+
+      if (friendsError) {
+        console.log('Friendships table may not exist yet:', friendsError.message);
+        // Silently fail - friends feature is optional
+        setLoading(false);
+        return;
+      }
 
       // Load pending requests (received)
       const { data: pendingData } = await supabase
@@ -99,9 +113,19 @@ export default function FriendsScreen() {
         setSentRequests(sentData);
       }
     } catch (error: any) {
-      console.error('Error loading friends:', error.message || String(error));
+      console.log('Friends feature not available:', error.message);
+      // Silently fail - friends feature is optional
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadFriendsData();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -130,8 +154,12 @@ export default function FriendsScreen() {
 
   const sendFriendRequest = async (addresseeId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        Alert.alert('Error', 'You must be logged in to send friend requests');
+        return;
+      }
 
       const { error } = await supabase
         .from('friendships')
@@ -141,11 +169,20 @@ export default function FriendsScreen() {
           status: 'pending',
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          Alert.alert('Already Friends', 'You already have a connection with this user');
+        } else {
+          throw error;
+        }
+        return;
+      }
+
       Alert.alert('Success', 'Friend request sent!');
-      loadFriendsData();
+      await loadFriendsData();
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('Friend request error:', error);
+      Alert.alert('Error', error.message || 'Failed to send friend request');
     }
   };
 
@@ -156,11 +193,15 @@ export default function FriendsScreen() {
         .update({ status: 'accepted' })
         .eq('id', friendshipId);
 
-      if (error) throw error;
+      if (error) {
+        throw new Error('Failed to accept request: ' + error.message);
+      }
+
       Alert.alert('Success', 'Friend request accepted!');
-      loadFriendsData();
+      await loadFriendsData();
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('Accept request error:', error);
+      Alert.alert('Error', error.message || 'Failed to accept friend request');
     }
   };
 
@@ -257,34 +298,45 @@ export default function FriendsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
+      <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Friends</Text>
+          </View>
+        </SafeAreaView>
+        <View style={styles.listContent}>
+          <FriendCardSkeleton />
+          <FriendCardSkeleton />
+          <FriendCardSkeleton />
+          <FriendCardSkeleton />
+          <FriendCardSkeleton />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Friends</Text>
-        <View style={styles.tabs}>
-          {(['friends', 'requests', 'search'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab === 'friends' ? `Friends (${friends.length})` : null}
-                {tab === 'requests' ? `Requests (${pendingRequests.length + sentRequests.length})` : null}
-                {tab === 'search' ? 'Search' : null}
-              </Text>
-            </TouchableOpacity>
-          ))}
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Friends</Text>
+          <View style={styles.tabs}>
+            {(['friends', 'requests', 'search'] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, activeTab === tab && styles.activeTab]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+                  {tab === 'friends' ? `Friends (${friends.length})` : null}
+                  {tab === 'requests' ? `Requests (${pendingRequests.length + sentRequests.length})` : null}
+                  {tab === 'search' ? 'Search' : null}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
 
       {activeTab === 'search' && (
         <View style={styles.searchContainer}>
@@ -305,6 +357,14 @@ export default function FriendsScreen() {
           renderItem={renderFriend}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.midnightBlue}
+              colors={[theme.colors.midnightBlue]}
+            />
+          }
           ListEmptyComponent={
             <Text style={styles.emptyText}>No friends yet</Text>
           }
@@ -312,7 +372,17 @@ export default function FriendsScreen() {
       )}
 
       {activeTab === 'requests' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.midnightBlue}
+              colors={[theme.colors.midnightBlue]}
+            />
+          }
+        >
           {/* Received Requests */}
           {pendingRequests.length > 0 && (
             <>
@@ -372,7 +442,7 @@ export default function FriendsScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -380,6 +450,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.cream,
+  },
+  headerSafeArea: {
+    backgroundColor: theme.colors.offWhite,
   },
   header: {
     paddingHorizontal: theme.spacing.xl,
@@ -394,7 +467,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.lg,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: 'Crimson Pro',
   },
   tabs: {
     flexDirection: 'row',
@@ -540,7 +613,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.md,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
   },
   pendingBadge: {
     flexDirection: 'row',
