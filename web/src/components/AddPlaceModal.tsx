@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, MapPin, Coffee, Utensils, Camera, Mountain, ShoppingBag, Hotel, Heart, Star, Building2, Gem, Users, MoreHorizontal, Loader2, DollarSign } from 'lucide-react';
+import { X, MapPin, Coffee, Utensils, Camera, Mountain, ShoppingBag, Hotel, Heart, Building2, Gem, Users, MoreHorizontal, Loader2, DollarSign } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 
@@ -40,7 +40,6 @@ export default function AddPlaceModal({
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [rating, setRating] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,11 +52,6 @@ export default function AddPlaceModal({
       // Set name
       if (placeDetails.name) {
         setTitle(placeDetails.name);
-      }
-
-      // Set rating (convert Google's 5-star to our 5-star)
-      if (placeDetails.rating) {
-        setRating(Math.round(placeDetails.rating));
       }
 
       // Auto-detect category from Google place types
@@ -114,7 +108,6 @@ export default function AddPlaceModal({
           category: selectedCategory,
           lat: latitude,
           lng: longitude,
-          rating,
           created_by: user.id,
         });
 
@@ -129,7 +122,6 @@ export default function AddPlaceModal({
       setTitle('');
       setComment('');
       setSelectedCategory('');
-      setRating(0);
       setIsFavorite(false);
 
       // Notify parent
@@ -263,38 +255,6 @@ export default function AddPlaceModal({
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Rating */}
-          <div>
-            <label className="text-label block mb-2">
-              Rating
-            </label>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setRating(star)}
-                  className="p-1 hover:scale-110 transition-transform"
-                >
-                  <Star
-                    size={24}
-                    className={star <= rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}
-                  />
-                </button>
-              ))}
-              <button
-                onClick={() => setIsFavorite(!isFavorite)}
-                className={`ml-4 p-2 rounded-lg transition-colors ${
-                  isFavorite ? 'bg-red-50' : 'hover:bg-gray-100'
-                }`}
-              >
-                <Heart
-                  size={20}
-                  className={isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-400'}
-                />
-              </button>
             </div>
           </div>
 
