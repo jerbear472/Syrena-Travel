@@ -9,6 +9,8 @@ interface ProfileSettingsProps {
   onBack: () => void;
 }
 
+const ODYSSEY_ICONS = ['odyssey-1.png', 'odyssey-2.png', 'odyssey-3.png'];
+
 export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [odysseyIcon, setOdysseyIcon] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
@@ -41,6 +44,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
           setDisplayName(profile.display_name || '');
           setUsername(profile.username || '');
           setAvatarUrl(profile.avatar_url);
+          setOdysseyIcon(profile.odyssey_icon || null);
         }
       }
     } catch (error) {
@@ -129,7 +133,8 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
         .from('profiles')
         .update({
           display_name: displayName,
-          username: username
+          username: username,
+          odyssey_icon: odysseyIcon
         })
         .eq('id', user.id);
 
@@ -233,6 +238,46 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
                 onChange={handleFileSelect}
                 className="hidden"
               />
+            </div>
+          </div>
+
+          {/* Odyssey Icon Selection */}
+          <div className="card-minimal p-6">
+            <h2 className="font-serif font-semibold text-earth-brown mb-4 text-lg">
+              Map Pin Icon
+            </h2>
+            <p className="text-sm text-ocean-grey mb-4">
+              Choose an Odyssey-themed icon that will appear as your map pin
+            </p>
+            <div className="grid grid-cols-3 gap-4">
+              {ODYSSEY_ICONS.map((icon) => (
+                <button
+                  key={icon}
+                  onClick={() => setOdysseyIcon(icon)}
+                  className={`relative aspect-square rounded-lg overflow-hidden border-4 transition-all hover:scale-105 ${
+                    odysseyIcon === icon
+                      ? 'border-deep-teal shadow-rustic-lg'
+                      : 'border-warm-stone hover:border-stone-blue'
+                  }`}
+                >
+                  <Image
+                    src={`/avatars/${icon}`}
+                    alt={`Odyssey icon ${icon}`}
+                    width={200}
+                    height={200}
+                    className="w-full h-full object-cover"
+                  />
+                  {odysseyIcon === icon && (
+                    <div className="absolute inset-0 bg-deep-teal/20 flex items-center justify-center">
+                      <div className="w-8 h-8 bg-deep-teal rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-cream" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 

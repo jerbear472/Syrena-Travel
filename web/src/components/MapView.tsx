@@ -115,9 +115,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   }, [centerProp, map]);
 
   useEffect(() => {
-    // Load places
-    loadAllPlaces(); // Load all public places
-    // Get current user
+    // Get current user first
     getCurrentUser();
 
     // Get user location
@@ -142,12 +140,12 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     }
   }, [isLoaded]); // Remove centerProp from dependencies
 
-  // Reload places when friend filter changes
+  // Load places when map is ready, authentication changes, or filter changes
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && map) {
       loadAllPlaces();
     }
-  }, [showOnlyFriends]);
+  }, [isLoaded, map, isAuthenticated, showOnlyFriends]);
 
   // Update markers when map or saved places change (but NOT on zoom changes to prevent flashing)
   useEffect(() => {
@@ -415,10 +413,15 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           return;
         }
 
-        // Fetch places from friends only
+        // Fetch places from friends only with their profile info
         const { data, error } = await supabase
           .from('places')
-          .select('*')
+          .select(`
+            *,
+            profiles!places_created_by_fkey (
+              odyssey_icon
+            )
+          `)
           .in('created_by', friendIds)
           .order('created_at', { ascending: false });
 
@@ -437,10 +440,15 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           }
         }
       } else {
-        // Load user's own places
+        // Load user's own places with profile info
         const { data, error } = await supabase
           .from('places')
-          .select('*')
+          .select(`
+            *,
+            profiles!places_created_by_fkey (
+              odyssey_icon
+            )
+          `)
           .eq('created_by', user.id)
           .order('created_at', { ascending: false });
 
@@ -484,14 +492,50 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     places.forEach(place => {
       console.log('Creating marker for place:', place.name, 'at', place.lat, place.lng);
 
-      // Use the lyre-circle.svg for consistency - made larger (60x60)
-      const marker = new google.maps.Marker({
-        position: { lat: Number(place.lat), lng: Number(place.lng) },
-        icon: {
+      // Get the odyssey icon from the place's creator profile
+      const odysseyIcon = place.profiles?.odyssey_icon;
+
+      let iconConfig;
+      if (odysseyIcon) {
+        // Use odyssey icon with white border - create SVG wrapper
+        const svg = `
+          <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="clip-circle-${place.id}">
+                <circle cx="30" cy="30" r="26"/>
+              </clipPath>
+              <filter id="shadow-${place.id}" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+              </filter>
+            </defs>
+            <circle cx="30" cy="30" r="28" fill="white" filter="url(#shadow-${place.id})"/>
+            <image
+              href="/avatars/${odysseyIcon}"
+              x="4" y="4"
+              width="52" height="52"
+              clip-path="url(#clip-circle-${place.id})"
+            />
+          </svg>
+        `;
+        const encodedSvg = `data:image/svg+xml;base64,${btoa(svg)}`;
+
+        iconConfig = {
+          url: encodedSvg,
+          scaledSize: new google.maps.Size(60, 60),
+          anchor: new google.maps.Point(30, 30)
+        };
+      } else {
+        // Default to lyre icon
+        iconConfig = {
           url: '/lyre-circle.svg',
           scaledSize: new google.maps.Size(60, 60),
           anchor: new google.maps.Point(30, 30)
-        },
+        };
+      }
+
+      const marker = new google.maps.Marker({
+        position: { lat: Number(place.lat), lng: Number(place.lng) },
+        icon: iconConfig,
         map: null,
         zIndex: 1000,
         optimized: false

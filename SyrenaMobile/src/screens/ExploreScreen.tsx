@@ -125,19 +125,61 @@ export default function ExploreScreen() {
   };
 
   const fetchPlaceDetails = async (lat: number, lng: number) => {
-    // Note: Google Places API requires server-side calls or a proxy
-    // For now, we'll just show a simple implementation
-    // In production, you'd want to create a serverless function or API endpoint
     setLoadingPlaceDetails(true);
 
     try {
-      // Simulate fetching - in a real app, call your backend API
-      // For now, just set loading to false after a short delay
-      setTimeout(() => {
-        setLoadingPlaceDetails(false);
-      }, 500);
+      // Call our Next.js API endpoint to fetch place details
+      // Use localhost for simulator, or your machine's IP for real device
+      const API_URL = Platform.OS === 'ios'
+        ? 'http://localhost:3000/api/places'
+        : 'http://10.0.2.2:3000/api/places'; // Android emulator uses 10.0.2.2 for localhost
+
+      const response = await fetch(`${API_URL}?lat=${lat}&lng=${lng}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const placeInfo = await response.json();
+
+        // Only set place details if we got valid data
+        if (placeInfo && !placeInfo.error) {
+          setPlaceDetails(placeInfo);
+
+          // Auto-populate form
+          if (placeInfo.name) {
+            setPlaceName(placeInfo.name);
+          }
+          if (placeInfo.priceLevel) {
+            setPriceLevel(placeInfo.priceLevel);
+          }
+
+          // Auto-detect category
+          if (placeInfo.types && placeInfo.types.length > 0) {
+            const types = placeInfo.types;
+            if (types.includes('restaurant') || types.includes('food')) {
+              setSelectedCategory('restaurant');
+            } else if (types.includes('cafe') || types.includes('coffee')) {
+              setSelectedCategory('cafe');
+            } else if (types.includes('hotel') || types.includes('lodging')) {
+              setSelectedCategory('hotel');
+            } else if (types.includes('shopping_mall') || types.includes('store')) {
+              setSelectedCategory('shopping');
+            } else if (types.includes('museum') || types.includes('art_gallery')) {
+              setSelectedCategory('museum');
+            } else if (types.includes('park') || types.includes('natural_feature')) {
+              setSelectedCategory('nature');
+            } else if (types.includes('tourist_attraction')) {
+              setSelectedCategory('viewpoint');
+            }
+          }
+        }
+      }
     } catch (error: any) {
       console.error('Error fetching place details:', error.message || String(error));
+    } finally {
       setLoadingPlaceDetails(false);
     }
   };
