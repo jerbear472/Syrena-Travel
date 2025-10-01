@@ -6,14 +6,15 @@ import {
   Send, UserCheck, UserX, Shield, ChevronRight, AlertCircle, MapPin
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-import FriendPlacesModal from './FriendPlacesModal';
+import FriendPlacesPage from './FriendPlacesPage';
 
 interface FriendsProps {
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
+  onNavigateToPlace?: (lat: number, lng: number) => void;
 }
 
-export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps) {
+export default function Friends({ isSidebarOpen, onToggleSidebar, onNavigateToPlace }: FriendsProps) {
   const [friends, setFriends] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [sentRequests, setSentRequests] = useState<any[]>([]);
@@ -24,7 +25,6 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
   const [searchError, setSearchError] = useState('');
   const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
-  const [showFriendPlaces, setShowFriendPlaces] = useState(false);
 
   const supabase = createClient();
 
@@ -226,6 +226,17 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
     { id: 'search', label: 'Find Friends', icon: Search }
   ];
 
+  // If viewing a friend's places, show the full page
+  if (selectedFriend) {
+    return (
+      <FriendPlacesPage
+        friend={selectedFriend}
+        onBack={() => setSelectedFriend(null)}
+        onNavigateToPlace={onNavigateToPlace}
+      />
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
@@ -297,10 +308,7 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
                     <div
                       key={friendship.id}
                       className="card-minimal p-4 flex items-center justify-between group hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => {
-                        setSelectedFriend(friendship.friend);
-                        setShowFriendPlaces(true);
-                      }}
+                      onClick={() => setSelectedFriend(friendship.friend)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center text-white font-medium">
@@ -318,7 +326,6 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedFriend(friendship.friend);
-                            setShowFriendPlaces(true);
                           }}
                           className="btn-secondary btn-sm flex items-center gap-1"
                         >
@@ -528,18 +535,6 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
           </>
         )}
       </div>
-
-      {/* Friend Places Modal */}
-      {selectedFriend && (
-        <FriendPlacesModal
-          isOpen={showFriendPlaces}
-          onClose={() => {
-            setShowFriendPlaces(false);
-            setSelectedFriend(null);
-          }}
-          friend={selectedFriend}
-        />
-      )}
     </div>
   );
 }

@@ -1,0 +1,677 @@
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import Geolocation from '@react-native-community/geolocation';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { supabase } from '../lib/supabase';
+import theme from '../theme';
+
+interface Place {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  description?: string;
+  category?: string;
+  rating?: number;
+  created_by: string;
+}
+
+const categories = [
+  { id: 'restaurant', name: 'Restaurant', icon: 'restaurant' },
+  { id: 'cafe', name: 'Café', icon: 'local-cafe' },
+  { id: 'viewpoint', name: 'Viewpoint', icon: 'photo-camera' },
+  { id: 'nature', name: 'Nature', icon: 'park' },
+  { id: 'shopping', name: 'Shopping', icon: 'shopping-bag' },
+  { id: 'hotel', name: 'Hotel', icon: 'hotel' },
+  { id: 'museum', name: 'Museum', icon: 'account-balance' },
+  { id: 'hidden-gem', name: 'Hidden Gem', icon: 'stars' },
+  { id: 'people-watching', name: 'People Watching', icon: 'people' },
+  { id: 'other', name: 'Other', icon: 'more-horiz' },
+];
+
+export default function ExploreScreen() {
+  const mapRef = useRef<MapView>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newPlace, setNewPlace] = useState<{lat: number; lng: number} | null>(null);
+  const [placeName, setPlaceName] = useState('');
+  const [placeDescription, setPlaceDescription] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [rating, setRating] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  useEffect(() => {
+    getCurrentLocation();
+    loadPlaces();
+
+    const subscription = supabase
+      .channel('places')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'places' }, loadPlaces)
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const getCurrentLocation = () => {
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ latitude, longitude });
+        mapRef.current?.animateToRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      },
+      (error) => {
+        console.error('Location error:', error.message || String(error));
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
+    );
+  };
+
+  const loadPlaces = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPlaces(data || []);
+    } catch (error: any) {
+      console.error('Error loading places:', error.message || String(error));
+    }
+  };
+
+  const handleMapPress = (event: any) => {
+    const coordinate = event.nativeEvent.coordinate;
+    setNewPlace({ lat: coordinate.latitude, lng: coordinate.longitude });
+    setShowAddModal(true);
+  };
+
+  const savePlace = async () => {
+    if (!placeName || !selectedCategory || !newPlace) {
+      Alert.alert('Error', 'Please fill in place name and select a category');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase.from('places').insert({
+        name: placeName,
+        lat: newPlace.lat,
+        lng: newPlace.lng,
+        description: placeDescription,
+        category: selectedCategory,
+        rating,
+        created_by: user.id,
+      });
+
+      if (error) throw error;
+
+      setShowAddModal(false);
+      resetForm();
+      loadPlaces();
+
+      Alert.alert('Success', 'Place saved!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setPlaceName('');
+    setPlaceDescription('');
+    setSelectedCategory('');
+    setRating(0);
+    setNewPlace(null);
+  };
+
+  const getCategoryIcon = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category?.icon || 'place';
+  };
+
+  const handleMarkerPress = (place: Place) => {
+    setSelectedPlace(place);
+    setShowDetailsModal(true);
+  };
+
+  const handleDeletePlace = async (placeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('places')
+        .delete()
+        .eq('id', placeId);
+
+      if (error) throw error;
+
+      setShowDetailsModal(false);
+      setSelectedPlace(null);
+      loadPlaces();
+      Alert.alert('Success', 'Place deleted');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const confirmDeletePlace = (placeId: string, placeName: string) => {
+    Alert.alert(
+      'Delete Place',
+      `Are you sure you want to delete "${placeName}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          onPress: () => handleDeletePlace(placeId),
+          style: 'destructive'
+        },
+      ]
+    );
+  };
+
+  const getMarkerColor = (categoryId: string) => {
+    const colors: {[key: string]: string} = {
+      restaurant: '#5B8C9E',
+      cafe: '#7FA9BA',
+      viewpoint: '#4A7A8C',
+      nature: '#6B9DAE',
+      shopping: '#8BAFC0',
+      hotel: '#3D6B7D',
+      museum: '#5F8FA1',
+      'hidden-gem': '#4D7C8E',
+      'people-watching': '#6A9AAC',
+      other: '#7B8C94',
+    };
+    return colors[categoryId] || '#3D6B7D';
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Explore</Text>
+        <TouchableOpacity
+          style={styles.searchButton}
+          onPress={() => setShowSearch(!showSearch)}
+        >
+          <Icon name="search" size={24} color={theme.colors.midnightBlue} />
+        </TouchableOpacity>
+      </View>
+
+      {showSearch && (
+        <View style={styles.searchContainer}>
+          <Icon name="search" size={20} color={theme.colors.oceanGrey} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for places..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+          />
+          <TouchableOpacity onPress={() => setShowSearch(false)}>
+            <Icon name="close" size={20} color={theme.colors.oceanGrey} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <Text style={styles.subtitle}>Tap anywhere on the map to save a place</Text>
+
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        showsUserLocation
+        showsMyLocationButton
+        onPress={handleMapPress}
+        initialRegion={{
+          latitude: userLocation?.latitude || 37.78825,
+          longitude: userLocation?.longitude || -122.4324,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+      >
+        {places.map((place) => (
+          <Marker
+            key={place.id}
+            coordinate={{ latitude: place.lat, longitude: place.lng }}
+            title={place.name}
+            description={place.description}
+            pinColor={getMarkerColor(place.category || 'other')}
+            onPress={() => handleMarkerPress(place)}
+          />
+        ))}
+      </MapView>
+
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Place</Text>
+                <TouchableOpacity onPress={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}>
+                  <Icon name="close" size={24} color={theme.colors.midnightBlue} />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Place name *"
+                value={placeName}
+                onChangeText={setPlaceName}
+                editable={!loading}
+              />
+
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.categoriesGrid}>
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryButton,
+                      selectedCategory === cat.id && styles.categoryButtonActive
+                    ]}
+                    onPress={() => setSelectedCategory(cat.id)}
+                    disabled={loading}
+                  >
+                    <Icon
+                      name={cat.icon}
+                      size={20}
+                      color={selectedCategory === cat.id ? theme.colors.midnightBlue : theme.colors.oceanGrey}
+                    />
+                    <Text style={[
+                      styles.categoryText,
+                      selectedCategory === cat.id && styles.categoryTextActive
+                    ]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Rating</Text>
+              <View style={styles.ratingContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setRating(star)}
+                    disabled={loading}
+                  >
+                    <Icon
+                      name={star <= rating ? 'star' : 'star-border'}
+                      size={32}
+                      color={star <= rating ? '#F59E0B' : '#D1D5DB'}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Notes (optional)"
+                value={placeDescription}
+                onChangeText={setPlaceDescription}
+                multiline
+                numberOfLines={4}
+                editable={!loading}
+              />
+
+              <TouchableOpacity
+                style={[styles.saveButton, loading && styles.buttonDisabled]}
+                onPress={savePlace}
+                disabled={loading || !placeName || !selectedCategory}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Place</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Place Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Place Details</Text>
+              <TouchableOpacity onPress={() => {
+                setShowDetailsModal(false);
+                setSelectedPlace(null);
+              }}>
+                <Icon name="close" size={24} color={theme.colors.midnightBlue} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedPlace && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Category Icon */}
+                <View style={styles.detailsIconContainer}>
+                  <Icon
+                    name={getCategoryIcon(selectedPlace.category || 'other')}
+                    size={48}
+                    color={theme.colors.midnightBlue}
+                  />
+                </View>
+
+                {/* Place Name */}
+                <Text style={styles.detailsTitle}>{selectedPlace.name}</Text>
+
+                {/* Category */}
+                <View style={styles.detailsRow}>
+                  <Icon name="category" size={18} color={theme.colors.oceanGrey} />
+                  <Text style={styles.detailsLabel}>Category:</Text>
+                  <Text style={styles.detailsValue}>
+                    {categories.find(c => c.id === selectedPlace.category)?.name || 'Other'}
+                  </Text>
+                </View>
+
+                {/* Rating */}
+                {selectedPlace.rating && selectedPlace.rating > 0 && (
+                  <View style={styles.detailsRow}>
+                    <Icon name="star" size={18} color="#F59E0B" />
+                    <Text style={styles.detailsLabel}>Rating:</Text>
+                    <View style={styles.ratingDisplay}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Icon
+                          key={star}
+                          name={star <= (selectedPlace.rating || 0) ? 'star' : 'star-border'}
+                          size={16}
+                          color={star <= (selectedPlace.rating || 0) ? '#F59E0B' : '#D1D5DB'}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Description */}
+                {selectedPlace.description && (
+                  <View style={styles.detailsSection}>
+                    <View style={styles.detailsRow}>
+                      <Icon name="notes" size={18} color={theme.colors.oceanGrey} />
+                      <Text style={styles.detailsLabel}>Notes:</Text>
+                    </View>
+                    <Text style={styles.detailsDescription}>
+                      {selectedPlace.description}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Location */}
+                <View style={styles.detailsRow}>
+                  <Icon name="place" size={18} color={theme.colors.oceanGrey} />
+                  <Text style={styles.detailsLabel}>Location:</Text>
+                  <Text style={styles.detailsValue}>
+                    {selectedPlace.lat.toFixed(6)}, {selectedPlace.lng.toFixed(6)}
+                  </Text>
+                </View>
+
+                {/* Delete Button */}
+                <TouchableOpacity
+                  style={styles.deleteButtonLarge}
+                  onPress={() => confirmDeletePlace(selectedPlace.id, selectedPlace.name)}
+                >
+                  <Icon name="delete" size={20} color="#FFF" />
+                  <Text style={styles.deleteButtonText}>Delete Place</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.cream,
+  },
+  header: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.lg,
+    backgroundColor: theme.colors.offWhite,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.seaMist,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+  },
+  searchButton: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.seaMist,
+    backgroundColor: theme.colors.offWhite,
+  },
+  searchIcon: {
+    marginRight: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.midnightBlue,
+  },
+  subtitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.oceanGrey,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,
+  },
+  map: {
+    flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(61, 85, 104, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.offWhite,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    paddingBottom: 40,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
+  },
+  modalTitle: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+  },
+  label: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+    color: theme.colors.midnightBlue,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  categoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+    backgroundColor: '#FFFFFF',
+  },
+  categoryButtonActive: {
+    borderColor: theme.colors.midnightBlue,
+    backgroundColor: theme.colors.aquaMist,
+  },
+  categoryText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.oceanGrey,
+    fontWeight: '500',
+  },
+  categoryTextActive: {
+    color: theme.colors.midnightBlue,
+    fontWeight: '600',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  saveButton: {
+    backgroundColor: theme.colors.midnightBlue,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: theme.colors.cream,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+  detailsIconContainer: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.seaMist,
+    marginBottom: theme.spacing.lg,
+  },
+  detailsTitle: {
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+    marginBottom: theme.spacing.xl,
+    textAlign: 'center',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  detailsLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+  },
+  detailsValue: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.oceanGrey,
+    flex: 1,
+  },
+  ratingDisplay: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  detailsSection: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  detailsDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.oceanGrey,
+    lineHeight: 20,
+    marginTop: theme.spacing.sm,
+    paddingLeft: 26,
+  },
+  deleteButtonLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.error,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 14,
+    marginTop: theme.spacing.xxl,
+  },
+  deleteButtonText: {
+    color: '#FFF',
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+});
