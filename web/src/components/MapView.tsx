@@ -528,8 +528,8 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
       let iconConfig;
       if (odysseyIcon) {
-        // Use circular odyssey icon
-        const iconName = odysseyIcon.replace('.png', '-circle.svg');
+        // Use circular odyssey icon (PNG)
+        const iconName = odysseyIcon.replace('.png', '-circle.png');
         iconConfig = {
           url: `/avatars/${iconName}`,
           scaledSize: new google.maps.Size(60, 60),

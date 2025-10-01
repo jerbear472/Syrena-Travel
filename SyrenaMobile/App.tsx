@@ -37,7 +37,7 @@ function TabNavigator() {
         },
         tabBarLabel: ({ focused, color }) => (
           <Text style={{
-            fontFamily: theme.fonts.serif.regular,
+            fontFamily: theme.fonts.display.regular,
             fontSize: 12,
             color: color,
           }}>

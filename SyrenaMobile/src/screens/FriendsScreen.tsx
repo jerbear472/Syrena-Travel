@@ -179,7 +179,14 @@ export default function FriendsScreen() {
   };
 
   const renderFriend = ({ item }: { item: Friend }) => (
-    <View style={styles.userCard}>
+    <TouchableOpacity
+      style={styles.userCard}
+      onPress={() => navigation.navigate('My Places', {
+        friendId: item.friend_id,
+        friendName: item.friend.display_name || item.friend.username,
+      })}
+      activeOpacity={0.7}
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>
           {item.friend.username?.[0]?.toUpperCase()}
@@ -191,7 +198,8 @@ export default function FriendsScreen() {
         </Text>
         <Text style={styles.userUsername}>@{item.friend.username}</Text>
       </View>
-    </View>
+      <Icon name="chevron-right" size={24} color={theme.colors.oceanGrey} />
+    </TouchableOpacity>
   );
 
   const renderRequest = ({ item }: { item: PendingRequest }) => (
@@ -386,7 +394,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.lg,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: theme.fonts.display.regular,
   },
   tabs: {
     flexDirection: 'row',

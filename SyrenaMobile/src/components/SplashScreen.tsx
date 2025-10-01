@@ -79,7 +79,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
           <Image
             source={require('../assets/images/bluelyre.png')}
             style={styles.logo}
-            resizeMode="contain"
+            resizeMode="cover"
           />
         </View>
         <Text style={styles.title}>Syrena</Text>

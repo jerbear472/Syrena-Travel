@@ -26,7 +26,7 @@ interface Place {
   created_by: string;
 }
 
-export default function MyPlacesScreen() {
+export default function MyPlacesScreen({ navigation }: any) {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -118,8 +118,22 @@ export default function MyPlacesScreen() {
     return icons[category || 'other'] || 'place';
   };
 
+  const handlePlacePress = (place: Place) => {
+    navigation.navigate('Explore', {
+      focusPlace: {
+        lat: place.lat,
+        lng: place.lng,
+        name: place.name,
+      },
+    });
+  };
+
   const renderPlace = ({ item }: { item: Place }) => (
-    <View style={styles.placeCard}>
+    <TouchableOpacity
+      style={styles.placeCard}
+      onPress={() => handlePlacePress(item)}
+      activeOpacity={0.7}
+    >
       <View style={styles.placeContent}>
         <View style={styles.placeIcon}>
           <Icon name={getCategoryIcon(item.category)} size={24} color="#000" />
@@ -147,12 +161,15 @@ export default function MyPlacesScreen() {
         </View>
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => confirmDelete(item.id, item.name)}
+          onPress={(e) => {
+            e.stopPropagation();
+            confirmDelete(item.id, item.name);
+          }}
         >
           <Icon name="delete" size={20} color="#EF4444" />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -274,7 +291,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xxl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: theme.fonts.display.regular,
   },
   subtitle: {
     fontSize: theme.fontSize.sm,

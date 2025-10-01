@@ -215,7 +215,7 @@ export default function PlaceDetailsModal({
             <div className="w-12 h-12 flex items-center justify-center">
               {place.profile?.odyssey_icon ? (
                 <Image
-                  src={`/avatars/${place.profile.odyssey_icon.replace('.png', '-circle.svg')}`}
+                  src={`/avatars/${place.profile.odyssey_icon.replace('.png', '-circle.png')}`}
                   alt="Creator icon"
                   width={48}
                   height={48}

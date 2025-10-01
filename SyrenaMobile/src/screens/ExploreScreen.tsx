@@ -44,7 +44,7 @@ const categories = [
   { id: 'other', name: 'Other', icon: 'more-horiz' },
 ];
 
-export default function ExploreScreen() {
+export default function ExploreScreen({ route }: any) {
   const mapRef = useRef<MapView>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
@@ -83,6 +83,19 @@ export default function ExploreScreen() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Handle navigation from My Places
+  useEffect(() => {
+    if (route?.params?.focusPlace) {
+      const { lat, lng } = route.params.focusPlace;
+      mapRef.current?.animateToRegion({
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    }
+  }, [route?.params?.focusPlace]);
 
   const getUser = async () => {
     try {
@@ -851,7 +864,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.fontSize.xxl,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: theme.fonts.display.regular,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
   },

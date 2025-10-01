@@ -197,7 +197,7 @@ export default function AddPlaceModal({
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               {userOdysseyIcon ? (
                 <Image
-                  src={`/avatars/${userOdysseyIcon.replace('.png', '-circle.svg')}`}
+                  src={`/avatars/${userOdysseyIcon.replace('.png', '-circle.png')}`}
                   alt="Your icon"
                   width={64}
                   height={64}
