@@ -385,30 +385,79 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       return;
     }
 
-    console.log('Fetching places for user:', user.id);
+    console.log('Fetching places for user:', user.id, 'showOnlyFriends:', showOnlyFriends);
 
     try {
-      // For now, just load the user's own places
-      // TODO: Add friends' places once RLS policies are fixed
-      const { data, error } = await supabase
-        .from('places')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
+      if (showOnlyFriends) {
+        // Get user's accepted friends
+        const { data: friendships, error: friendError } = await supabase
+          .from('friendships')
+          .select('requester_id, addressee_id')
+          .eq('status', 'accepted')
+          .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
 
-      if (error) {
-        console.error('Error loading places:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        return;
-      }
+        if (friendError) {
+          console.error('Error loading friendships:', friendError);
+          setSavedPlaces([]);
+          return;
+        }
 
-      console.log('Loaded places:', data?.length || 0);
+        // Extract friend IDs
+        const friendIds = friendships?.map(f =>
+          f.requester_id === user.id ? f.addressee_id : f.requester_id
+        ) || [];
 
-      if (data) {
-        setSavedPlaces(data);
-        if (map) {
-          const zoom = map.getZoom() || currentZoom;
-          updateMarkers(data, zoom);
+        console.log('Friend IDs:', friendIds);
+
+        if (friendIds.length === 0) {
+          // No friends, show empty
+          setSavedPlaces([]);
+          return;
+        }
+
+        // Fetch places from friends only
+        const { data, error } = await supabase
+          .from('places')
+          .select('*')
+          .in('created_by', friendIds)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error loading friends places:', error);
+          return;
+        }
+
+        console.log('Loaded friends places:', data?.length || 0);
+
+        if (data) {
+          setSavedPlaces(data);
+          if (map) {
+            const zoom = map.getZoom() || currentZoom;
+            updateMarkers(data, zoom);
+          }
+        }
+      } else {
+        // Load user's own places
+        const { data, error } = await supabase
+          .from('places')
+          .select('*')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error loading places:', error);
+          console.error('Error details:', JSON.stringify(error, null, 2));
+          return;
+        }
+
+        console.log('Loaded my places:', data?.length || 0);
+
+        if (data) {
+          setSavedPlaces(data);
+          if (map) {
+            const zoom = map.getZoom() || currentZoom;
+            updateMarkers(data, zoom);
+          }
         }
       }
     } catch (err) {
@@ -642,20 +691,20 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         </button>
       )}
 
-      {/* Friend filter button - temporarily disabled until RLS is fixed */}
-      {/* {isAuthenticated && (
+      {/* Friend filter button */}
+      {isAuthenticated && (
         <button
           onClick={() => setShowOnlyFriends(!showOnlyFriends)}
           className={`absolute top-40 right-3 p-3 rounded-lg shadow-lg hover:shadow-xl transition-all ${
             showOnlyFriends
               ? 'bg-midnight-blue text-cream'
-              : 'bg-white text-midnight-blue'
+              : 'bg-white text-midnight-blue hover:bg-gray-50'
           }`}
-          title={showOnlyFriends ? "Show all places" : "Show only friends' places"}
+          title={showOnlyFriends ? "Show my places" : "Show friends' places"}
         >
-          <Users className="w-5 h-5" />
+          <Users className={`w-5 h-5 ${showOnlyFriends ? 'text-cream' : 'text-midnight-blue'}`} />
         </button>
-      )} */}
+      )}
 
       {/* Add Place Modal */}
       {selectedLocation && (
