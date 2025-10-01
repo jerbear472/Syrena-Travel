@@ -528,13 +528,12 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
       let iconConfig;
       if (odysseyIcon) {
-        // Use odyssey icon directly
+        // Use circular odyssey icon
+        const iconName = odysseyIcon.replace('.png', '-circle.svg');
         iconConfig = {
-          url: `/avatars/${odysseyIcon}`,
+          url: `/avatars/${iconName}`,
           scaledSize: new google.maps.Size(60, 60),
-          anchor: new google.maps.Point(30, 30),
-          // Make it circular by using CSS in the marker
-          // Google Maps will handle the image as-is
+          anchor: new google.maps.Point(30, 30)
         };
       } else {
         // Default to lyre icon

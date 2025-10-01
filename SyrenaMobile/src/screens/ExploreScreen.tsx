@@ -90,9 +90,46 @@ export default function ExploreScreen() {
       setUser(user);
       if (user) {
         loadFriends(user.id);
+        loadOdysseyIcon(user.id);
       }
     } catch (error: any) {
       console.error('Error getting user:', error.message || String(error));
+    }
+  };
+
+  const loadOdysseyIcon = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('odyssey_icon')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      if (data?.odyssey_icon) {
+        setOdysseyIcon(data.odyssey_icon);
+      }
+    } catch (error: any) {
+      console.error('Error loading odyssey icon:', error.message || String(error));
+    }
+  };
+
+  const saveOdysseyIcon = async (icon: string) => {
+    if (!user) return;
+    setSavingIcon(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ odyssey_icon: icon })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      setOdysseyIcon(icon);
+      Alert.alert('Success', 'Map pin icon updated!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setSavingIcon(false);
     }
   };
 
@@ -724,28 +761,68 @@ export default function ExploreScreen() {
             </View>
 
             {user && (
-              <View style={styles.profileContent}>
-                <View style={styles.profileAvatarLarge}>
-                  <Text style={styles.profileAvatarTextLarge}>
-                    {user.email?.[0]?.toUpperCase()}
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.profileContent}>
+                  <View style={styles.profileAvatarLarge}>
+                    <Text style={styles.profileAvatarTextLarge}>
+                      {user.email?.[0]?.toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.profileName}>
+                    {user.email?.split('@')[0]}
                   </Text>
-                </View>
-                <Text style={styles.profileName}>
-                  {user.email?.split('@')[0]}
-                </Text>
-                <Text style={styles.profileEmail}>{user.email}</Text>
+                  <Text style={styles.profileEmail}>{user.email}</Text>
 
-                <TouchableOpacity
-                  style={styles.signOutButton}
-                  onPress={async () => {
-                    await supabase.auth.signOut();
-                    setShowProfileModal(false);
-                  }}
-                >
-                  <Icon name="logout" size={20} color="#FFF" />
-                  <Text style={styles.signOutButtonText}>Sign Out</Text>
-                </TouchableOpacity>
-              </View>
+                  {/* Odyssey Icon Picker */}
+                  <View style={styles.iconPickerSection}>
+                    <Text style={styles.iconPickerTitle}>Map Pin Icon</Text>
+                    <Text style={styles.iconPickerSubtitle}>
+                      Choose an Odyssey-themed icon for your map pin
+                    </Text>
+                    <View style={styles.iconGrid}>
+                      {['odyssey-1.png', 'odyssey-2.png', 'odyssey-3.png'].map((icon) => (
+                        <TouchableOpacity
+                          key={icon}
+                          style={[
+                            styles.iconOption,
+                            odysseyIcon === icon && styles.iconOptionSelected,
+                          ]}
+                          onPress={() => saveOdysseyIcon(icon)}
+                          disabled={savingIcon}
+                        >
+                          <Image
+                            source={
+                              icon === 'odyssey-1.png'
+                                ? require('../assets/images/odyssey/odyssey-1.png')
+                                : icon === 'odyssey-2.png'
+                                ? require('../assets/images/odyssey/odyssey-2.png')
+                                : require('../assets/images/odyssey/odyssey-3.png')
+                            }
+                            style={styles.iconImage}
+                            resizeMode="cover"
+                          />
+                          {odysseyIcon === icon && (
+                            <View style={styles.iconCheckmark}>
+                              <Icon name="check" size={16} color={theme.colors.offWhite} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.signOutButton}
+                    onPress={async () => {
+                      await supabase.auth.signOut();
+                      setShowProfileModal(false);
+                    }}
+                  >
+                    <Icon name="logout" size={20} color="#FFF" />
+                    <Text style={styles.signOutButtonText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             )}
           </View>
         </View>
@@ -1185,5 +1262,65 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontFamily: theme.fonts.sans.regular,
     color: theme.colors.midnightBlue,
+  },
+  iconPickerSection: {
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.xl,
+    borderTopWidth: 2,
+    borderTopColor: theme.colors.seaMist,
+  },
+  iconPickerTitle: {
+    fontSize: theme.fontSize.lg,
+    fontFamily: theme.fonts.serif.regular,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+    marginBottom: theme.spacing.sm,
+  },
+  iconPickerSubtitle: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fonts.sans.regular,
+    color: theme.colors.oceanGrey,
+    marginBottom: theme.spacing.lg,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    justifyContent: 'center',
+  },
+  iconOption: {
+    width: 90,
+    height: 90,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 3,
+    borderColor: theme.colors.seaMist,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  iconOptionSelected: {
+    borderColor: theme.colors.deepTeal,
+    borderWidth: 4,
+    shadowColor: theme.colors.oceanDepth,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  iconImage: {
+    width: '100%',
+    height: '100%',
+  },
+  iconCheckmark: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(61, 85, 104, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

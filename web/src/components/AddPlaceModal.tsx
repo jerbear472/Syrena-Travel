@@ -44,8 +44,30 @@ export default function AddPlaceModal({
   const [priceLevel, setPriceLevel] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [userOdysseyIcon, setUserOdysseyIcon] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  // Load user's odyssey icon
+  useEffect(() => {
+    const loadUserIcon = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('odyssey_icon')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.odyssey_icon) {
+          setUserOdysseyIcon(profile.odyssey_icon);
+        }
+      }
+    };
+    if (isOpen) {
+      loadUserIcon();
+    }
+  }, [isOpen]);
 
   // Auto-populate form when place details are loaded
   useEffect(() => {
@@ -172,14 +194,26 @@ export default function AddPlaceModal({
           </button>
 
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-cream rounded-xl border-2 border-warm-stone overflow-hidden">
-              <Image
-                src="/bluelyre.png"
-                alt="Syrena"
-                width={64}
-                height={64}
-                className="object-cover w-full h-full"
-              />
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              {userOdysseyIcon ? (
+                <Image
+                  src={`/avatars/${userOdysseyIcon.replace('.png', '-circle.svg')}`}
+                  alt="Your icon"
+                  width={64}
+                  height={64}
+                  className="object-contain w-full h-full"
+                />
+              ) : (
+                <div className="bg-cream rounded-xl border-2 border-warm-stone overflow-hidden w-full h-full flex items-center justify-center">
+                  <Image
+                    src="/bluelyre.png"
+                    alt="Syrena"
+                    width={64}
+                    height={64}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+              )}
             </div>
             <h2 className="heading-2 mb-2">Add New Place</h2>
             <p className="text-caption">Pin this location to your personal map</p>
