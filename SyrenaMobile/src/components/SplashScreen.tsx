@@ -107,6 +107,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+    overflow: 'hidden',
     shadowColor: theme.colors.midnightBlue,
     shadowOffset: {
       width: 0,

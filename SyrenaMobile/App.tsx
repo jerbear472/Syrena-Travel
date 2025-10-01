@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Session } from '@supabase/supabase-js';
+import { Text } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { supabase } from './src/lib/supabase';
@@ -34,6 +35,15 @@ function TabNavigator() {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
+        tabBarLabel: ({ focused, color }) => (
+          <Text style={{
+            fontFamily: theme.fonts.serif.regular,
+            fontSize: 12,
+            color: color,
+          }}>
+            {route.name}
+          </Text>
+        ),
         tabBarActiveTintColor: theme.colors.midnightBlue,
         tabBarInactiveTintColor: theme.colors.oceanGrey,
         tabBarStyle: {

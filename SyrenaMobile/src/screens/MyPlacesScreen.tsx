@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xxl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: theme.fonts.serif.regular,
   },
   subtitle: {
     fontSize: theme.fontSize.sm,

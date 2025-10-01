@@ -212,8 +212,20 @@ export default function PlaceDetailsModal({
           </button>
 
           <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getCategoryColor(place.category)}`}>
-              <MapPin size={24} className="text-gray-700" />
+            <div className="w-12 h-12 flex items-center justify-center">
+              {place.profile?.odyssey_icon ? (
+                <Image
+                  src={`/avatars/${place.profile.odyssey_icon.replace('.png', '-circle.svg')}`}
+                  alt="Creator icon"
+                  width={48}
+                  height={48}
+                  className="object-contain"
+                />
+              ) : (
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getCategoryColor(place.category)}`}>
+                  <MapPin size={24} className="text-gray-700" />
+                </div>
+              )}
             </div>
             <div className="flex-1">
               <h2 className="heading-2 mb-1">{place.name}</h2>

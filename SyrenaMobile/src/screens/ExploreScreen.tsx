@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.fontSize.xxl,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: theme.fonts.serif.regular,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
   },

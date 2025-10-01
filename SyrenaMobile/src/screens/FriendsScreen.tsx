@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.lg,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: theme.fonts.serif.regular,
   },
   tabs: {
     flexDirection: 'row',
