@@ -33,11 +33,16 @@ const Friends = dynamic(() => import('@/components/FriendsNew'), {
   ssr: false
 });
 
+const ProfileSettings = dynamic(() => import('@/components/ProfileSettings'), {
+  ssr: false
+});
+
 export default function HomePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState('explore');
   const [loading, setLoading] = useState(true);
@@ -68,10 +73,19 @@ export default function HomePage() {
       setIsAuthenticated(!!user);
       setUser(user);
 
+      if (user) {
+        loadUserProfile(user.id);
+      }
+
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, session) => {
           setIsAuthenticated(!!session);
           setUser(session?.user || null);
+          if (session?.user) {
+            loadUserProfile(session.user.id);
+          } else {
+            setUserProfile(null);
+          }
         }
       );
 
@@ -80,6 +94,18 @@ export default function HomePage() {
     } catch (error) {
       console.error('Auth check failed:', error);
       setLoading(false);
+    }
+  };
+
+  const loadUserProfile = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profile) {
+      setUserProfile(profile);
     }
   };
 
@@ -217,16 +243,29 @@ export default function HomePage() {
         <div className="p-4 border-b-2 border-sea-mist flex-shrink-0">
           {isAuthenticated ? (
             <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-              <div className="relative flex-shrink-0">
-                <div className="w-10 h-10 bg-midnight-blue rounded-full flex items-center justify-center text-cream font-serif font-semibold text-sm border-2 border-deep-teal">
-                  {user?.email?.[0]?.toUpperCase()}
+              <button
+                onClick={() => setActiveTab('profile')}
+                className="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <div className="w-10 h-10 bg-midnight-blue rounded-full flex items-center justify-center text-cream font-serif font-semibold text-sm border-2 border-deep-teal overflow-hidden">
+                  {userProfile?.avatar_url ? (
+                    <Image
+                      src={userProfile.avatar_url}
+                      alt="Profile"
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user?.email?.[0]?.toUpperCase()
+                  )}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-aqua-mist rounded-full border-2 border-off-white"></div>
-              </div>
+              </button>
               {isSidebarOpen && (
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-serif font-semibold text-ocean-depth truncate">
-                    {user?.email?.split('@')[0]}
+                    {userProfile?.display_name || user?.email?.split('@')[0]}
                   </p>
                   <p className="text-xs text-ocean-grey font-sans truncate italic">{user?.email}</p>
                 </div>
@@ -408,6 +447,10 @@ export default function HomePage() {
 
         {activeTab === 'my-places' && <MyPlaces key={Date.now()} onNavigateToPlace={handleNavigateToPlace} isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} />}
         {activeTab === 'friends' && <Friends isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
+        {activeTab === 'profile' && <ProfileSettings onBack={() => {
+          setActiveTab('explore');
+          loadUserProfile(user?.id);
+        }} />}
       </main>
 
       {/* Auth Modal */}

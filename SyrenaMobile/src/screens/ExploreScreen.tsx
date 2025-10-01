@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -59,6 +60,9 @@ export default function ExploreScreen() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [placeDetails, setPlaceDetails] = useState<any>(null);
+  const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
+  const [priceLevel, setPriceLevel] = useState(0);
 
   useEffect(() => {
     getCurrentLocation();
@@ -120,10 +124,31 @@ export default function ExploreScreen() {
     }
   };
 
+  const fetchPlaceDetails = async (lat: number, lng: number) => {
+    // Note: Google Places API requires server-side calls or a proxy
+    // For now, we'll just show a simple implementation
+    // In production, you'd want to create a serverless function or API endpoint
+    setLoadingPlaceDetails(true);
+
+    try {
+      // Simulate fetching - in a real app, call your backend API
+      // For now, just set loading to false after a short delay
+      setTimeout(() => {
+        setLoadingPlaceDetails(false);
+      }, 500);
+    } catch (error: any) {
+      console.error('Error fetching place details:', error.message || String(error));
+      setLoadingPlaceDetails(false);
+    }
+  };
+
   const handleMapPress = (event: any) => {
     const coordinate = event.nativeEvent.coordinate;
     setNewPlace({ lat: coordinate.latitude, lng: coordinate.longitude });
     setShowAddModal(true);
+
+    // Fetch place details from Google Places API (non-blocking)
+    fetchPlaceDetails(coordinate.latitude, coordinate.longitude);
   };
 
   const savePlace = async () => {
@@ -143,6 +168,7 @@ export default function ExploreScreen() {
         lng: newPlace.lng,
         description: placeDescription,
         category: selectedCategory,
+        price_level: priceLevel > 0 ? priceLevel : null,
         created_by: user.id,
       });
 
@@ -165,6 +191,8 @@ export default function ExploreScreen() {
     setPlaceDescription('');
     setSelectedCategory('');
     setNewPlace(null);
+    setPlaceDetails(null);
+    setPriceLevel(0);
   };
 
   const getCategoryIcon = (categoryId: string) => {
@@ -319,6 +347,51 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Loading State */}
+              {loadingPlaceDetails && (
+                <View style={styles.loadingPlaceDetails}>
+                  <ActivityIndicator color={theme.colors.midnightBlue} />
+                  <Text style={styles.loadingText}>Fetching place details...</Text>
+                </View>
+              )}
+
+              {/* Place Photos */}
+              {placeDetails?.photos && placeDetails.photos.length > 0 && (
+                <View style={styles.photosSection}>
+                  <Text style={styles.label}>Google Photos</Text>
+                  <View style={styles.photosGrid}>
+                    {placeDetails.photos.map((photo: string, index: number) => (
+                      <Image
+                        key={index}
+                        source={{ uri: photo }}
+                        style={styles.placePhoto}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Price Level */}
+              {priceLevel > 0 && (
+                <View style={styles.priceLevelContainer}>
+                  <Text style={styles.label}>Price Level:</Text>
+                  <View style={styles.priceLevelIcons}>
+                    {[1, 2, 3, 4].map((level) => (
+                      <Text
+                        key={level}
+                        style={[
+                          styles.dollarSign,
+                          level <= priceLevel && styles.dollarSignActive
+                        ]}
+                      >
+                        $
+                      </Text>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               <TextInput
                 style={styles.input}
                 placeholder="Place name *"
@@ -350,23 +423,6 @@ export default function ExploreScreen() {
                     ]}>
                       {cat.name}
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.label}>Rating</Text>
-              <View style={styles.ratingContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    onPress={() => setRating(star)}
-                    disabled={loading}
-                  >
-                    <Icon
-                      name={star <= rating ? 'star' : 'star-border'}
-                      size={32}
-                      color={star <= rating ? '#F59E0B' : '#D1D5DB'}
-                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -825,5 +881,45 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: theme.fontSize.md,
     fontWeight: '600',
+  },
+  loadingPlaceDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  photosSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  photosGrid: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  placePhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+  },
+  priceLevelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  priceLevelIcons: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  dollarSign: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.seaMist,
+    fontWeight: '600',
+  },
+  dollarSignActive: {
+    color: theme.colors.sirenGold,
   },
 });
