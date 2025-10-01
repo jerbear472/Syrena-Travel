@@ -264,6 +264,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
                       ? 'border-deep-teal shadow-rustic-lg'
                       : 'border-warm-stone hover:border-stone-blue'
                   }`}
+                  style={{ backgroundColor: '#2c3e50' }}
                 >
                   <Image
                     src={`/avatars/${icon}`}
@@ -271,6 +272,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
                     width={200}
                     height={200}
                     className="w-full h-full object-cover"
+                    style={{ filter: 'brightness(1.2) contrast(0.95)' }}
                   />
                   {odysseyIcon === icon && (
                     <div className="absolute inset-0 bg-deep-teal/20 flex items-center justify-center">

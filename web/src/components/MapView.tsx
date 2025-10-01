@@ -538,7 +538,9 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       let iconConfig;
       if (odysseyIcon) {
         // Use circular odyssey icon (PNG)
-        const iconName = odysseyIcon.replace('.png', '-circle.png');
+        const iconName = odysseyIcon.includes('-circle.png')
+          ? odysseyIcon
+          : odysseyIcon.replace('.png', '-circle.png');
         iconConfig = {
           url: `/avatars/${iconName}`,
           scaledSize: new google.maps.Size(60, 60),
@@ -743,9 +745,12 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
         {/* Clicked location marker (temp) - made larger (60x60) */}
         {clickedLocation && (() => {
-          const iconUrl = userOdysseyIcon
-            ? `/avatars/${userOdysseyIcon.replace('.png', '-circle.png')}`
-            : '/lyre-circle.svg';
+          const iconName = userOdysseyIcon
+            ? (userOdysseyIcon.includes('-circle.png')
+                ? userOdysseyIcon
+                : userOdysseyIcon.replace('.png', '-circle.png'))
+            : null;
+          const iconUrl = iconName ? `/avatars/${iconName}` : '/lyre-circle.svg';
           console.log('Rendering temporary marker with icon:', iconUrl, 'userOdysseyIcon:', userOdysseyIcon);
           return (
             <Marker
