@@ -41,6 +41,7 @@ export default function AddPlaceModal({
   const [comment, setComment] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [priceLevel, setPriceLevel] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -52,6 +53,11 @@ export default function AddPlaceModal({
       // Set name
       if (placeDetails.name) {
         setTitle(placeDetails.name);
+      }
+
+      // Set price level from Google Places
+      if (placeDetails.priceLevel) {
+        setPriceLevel(placeDetails.priceLevel);
       }
 
       // Auto-detect category from Google place types
@@ -108,6 +114,7 @@ export default function AddPlaceModal({
           category: selectedCategory,
           lat: latitude,
           lng: longitude,
+          price_level: priceLevel > 0 ? priceLevel : null,
           created_by: user.id,
         });
 
@@ -123,6 +130,7 @@ export default function AddPlaceModal({
       setComment('');
       setSelectedCategory('');
       setIsFavorite(false);
+      setPriceLevel(0);
 
       // Notify parent
       if (onPlaceAdded) {
@@ -197,7 +205,7 @@ export default function AddPlaceModal({
           )}
 
           {/* Price Level */}
-          {placeDetails?.priceLevel > 0 && (
+          {priceLevel > 0 && (
             <div className="flex items-center gap-2 text-terracotta">
               <label className="text-label">Price Level:</label>
               <div className="flex">
@@ -205,7 +213,7 @@ export default function AddPlaceModal({
                   <DollarSign
                     key={i}
                     size={16}
-                    className={i < placeDetails.priceLevel ? 'text-rust fill-rust' : 'text-warm-stone'}
+                    className={i < priceLevel ? 'text-rust fill-rust' : 'text-warm-stone'}
                   />
                 ))}
               </div>
