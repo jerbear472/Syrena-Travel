@@ -1,0 +1,26 @@
+<svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circular background with white border -->
+  <circle cx="25" cy="25" r="23" fill="#2A3F50" stroke="white" stroke-width="3"/>
+
+  <!-- Lyre icon -->
+  <g transform="translate(25, 25) scale(0.6)">
+    <!-- Lyre body - U shape -->
+    <path d="M-10 8 C-10 2, -10 -2, -10 -4 C-10 -7, -8 -9, 0 -9 C8 -9, 10 -7, 10 -4 C10 -2, 10 2, 10 8"
+          stroke="#95B5BC" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+    <!-- Cross bar at top -->
+    <line x1="-10" y1="-4" x2="10" y2="-4" stroke="#95B5BC" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Strings -->
+    <line x1="-6" y1="-4" x2="-6" y2="8" stroke="#95B5BC" stroke-width="1.5" opacity="0.7" stroke-linecap="round"/>
+    <line x1="0" y1="-4" x2="0" y2="8" stroke="#95B5BC" stroke-width="1.5" opacity="0.7" stroke-linecap="round"/>
+    <line x1="6" y1="-4" x2="6" y2="8" stroke="#95B5BC" stroke-width="1.5" opacity="0.7" stroke-linecap="round"/>
+
+    <!-- Base -->
+    <line x1="-12" y1="8" x2="12" y2="8" stroke="#B8A688" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Decorative curves at top -->
+    <path d="M-10 -4 C-10 -6, -11 -8, -12 -9" stroke="#95B5BC" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M10 -4 C10 -6, 11 -8, 12 -9" stroke="#95B5BC" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

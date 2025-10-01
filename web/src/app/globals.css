@@ -1,0 +1,640 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;500;600;700&family=Lora:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Muted Blue Rustic Color System - Siren & Lyre Theme */
+    --color-cream: #F5F7FA;
+    --color-off-white: #EEF2F6;
+    --color-sea-mist: #DFE6ED;
+    --color-stone-blue: #C8D4DF;
+    --color-driftwood: #A8B8C7;
+    --color-ocean-grey: #7A8FA3;
+    --color-deep-teal: #597387;
+    --color-midnight-blue: #3D5568;
+    --color-ocean-depth: #2A3F50;
+    --color-charcoal-blue: #1F2D3A;
+
+    /* Accent Colors - Oceanic Palette */
+    --color-sage-blue: #7C9AA5;
+    --color-aqua-mist: #95B5BC;
+    --color-seafoam: #6B8B95;
+
+    /* Siren & Lyre Accents */
+    --color-siren-gold: #B8A688;
+    --color-lyre-bronze: #9B8470;
+
+    /* System Colors - Oceanic */
+    --color-success: #6B8B95;
+    --color-warning: #B8A688;
+    --color-error: #A67C8F;
+
+    /* Spacing System */
+    --space-xs: 0.5rem;
+    --space-sm: 0.75rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    --space-3xl: 4rem;
+
+    /* Typography Scale - Rustic and Readable */
+    --text-xs: 0.8125rem;  /* 13px */
+    --text-sm: 0.9375rem;  /* 15px */
+    --text-base: 1.0625rem; /* 17px */
+    --text-lg: 1.25rem;     /* 20px */
+    --text-xl: 1.625rem;    /* 26px */
+    --text-2xl: 2rem;       /* 32px */
+    --text-3xl: 2.625rem;   /* 42px */
+    --text-4xl: 3.5rem;     /* 56px */
+
+    /* Border Radius - Softer, more organic */
+    --radius-sm: 0.1875rem; /* 3px */
+    --radius-md: 0.375rem;  /* 6px */
+    --radius-lg: 0.625rem;  /* 10px */
+    --radius-xl: 1rem;      /* 16px */
+    --radius-full: 9999px;
+
+    /* Shadows - Cool and Subtle */
+    --shadow-sm: 0 1px 3px 0 rgba(42, 63, 80, 0.08);
+    --shadow-md: 0 3px 8px -2px rgba(42, 63, 80, 0.12);
+    --shadow-lg: 0 8px 20px -4px rgba(42, 63, 80, 0.15);
+    --shadow-xl: 0 16px 32px -8px rgba(42, 63, 80, 0.18);
+    --shadow-ocean: 0 4px 16px -4px rgba(122, 143, 163, 0.25);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: 'Lora', 'Crimson Pro', Georgia, serif;
+    background: var(--color-cream);
+    min-height: 100vh;
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-charcoal-blue);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer components {
+  /* Oceanic Container */
+  .container-clean {
+    background: var(--color-off-white);
+    border: 1.5px solid var(--color-sea-mist);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Oceanic Card - Wave-like appearance */
+  .card-minimal {
+    background: var(--color-off-white);
+    border: 1.5px solid var(--color-sea-mist);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+  }
+
+  .card-minimal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(223, 230, 237, 0.4) 0%, rgba(200, 212, 223, 0.2) 100%);
+    pointer-events: none;
+    border-radius: var(--radius-lg);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .card-minimal:hover {
+    border-color: var(--color-stone-blue);
+    box-shadow: var(--shadow-ocean);
+    transform: translateY(-1px);
+  }
+
+  .card-minimal:hover::before {
+    opacity: 1;
+  }
+
+  /* Oceanic Button Styles */
+  button.btn,
+  button.btn-primary,
+  button.btn-secondary,
+  button.btn-ghost {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: var(--text-sm);
+    padding: 0.875rem 1.875rem !important;
+    min-height: 50px !important;
+    border-radius: var(--radius-md);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: none;
+    outline: none;
+    white-space: nowrap;
+    gap: 0.625rem !important;
+    line-height: 1.2;
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+
+  .btn svg,
+  .btn-primary svg,
+  .btn-secondary svg {
+    flex-shrink: 0;
+  }
+
+  .btn-primary {
+    background: var(--color-midnight-blue);
+    color: var(--color-cream);
+    box-shadow: var(--shadow-sm);
+    border: 1.5px solid var(--color-deep-teal);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-deep-teal);
+    box-shadow: var(--shadow-ocean);
+    transform: translateY(-2px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-secondary {
+    background: var(--color-off-white);
+    color: var(--color-midnight-blue);
+    border: 1.5px solid var(--color-stone-blue);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-secondary:hover {
+    background: var(--color-sea-mist);
+    border-color: var(--color-driftwood);
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-midnight-blue);
+    padding: 0.5rem 1rem;
+  }
+
+  .btn-ghost:hover {
+    background: var(--color-sea-mist);
+    color: var(--color-ocean-depth);
+  }
+
+  .btn-icon {
+    padding: 0.625rem;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-ocean-depth);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+  }
+
+  .btn-icon:hover {
+    background: var(--color-sea-mist);
+    color: var(--color-charcoal-blue);
+    border-color: var(--color-stone-blue);
+  }
+
+  /* Oceanic Input Styles */
+  .input-clean {
+    width: 100%;
+    padding: 0.8125rem 1.125rem;
+    min-height: 48px;
+    background: var(--color-off-white);
+    border: 1.5px solid var(--color-stone-blue);
+    border-radius: var(--radius-md);
+    font-family: 'Lora', serif;
+    font-size: var(--text-sm);
+    color: var(--color-charcoal-blue);
+    transition: all 0.25s ease;
+    box-shadow: inset 0 1px 3px rgba(42, 63, 80, 0.06);
+  }
+
+  .input-clean:focus {
+    outline: none;
+    border-color: var(--color-deep-teal);
+    background: var(--color-cream);
+    box-shadow: 0 0 0 3px rgba(89, 115, 135, 0.08), inset 0 1px 3px rgba(42, 63, 80, 0.06);
+  }
+
+  .input-clean::placeholder {
+    color: var(--color-driftwood);
+    font-style: italic;
+  }
+
+  /* Siren Typography */
+  .heading-1 {
+    font-family: 'Crimson Pro', 'Lora', serif;
+    font-size: var(--text-3xl);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+    color: var(--color-ocean-depth);
+  }
+
+  .heading-2 {
+    font-family: 'Crimson Pro', 'Lora', serif;
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+    color: var(--color-ocean-depth);
+  }
+
+  .heading-3 {
+    font-family: 'Crimson Pro', 'Lora', serif;
+    font-size: var(--text-xl);
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.4;
+    color: var(--color-midnight-blue);
+  }
+
+  .text-body {
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-deep-teal);
+  }
+
+  .text-caption {
+    font-size: var(--text-sm);
+    color: var(--color-ocean-grey);
+    font-style: italic;
+  }
+
+  .text-label {
+    font-family: 'Inter', sans-serif;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-midnight-blue);
+  }
+
+  /* Oceanic Navigation Styles */
+  .nav-item-clean {
+    padding: 0.875rem 1.125rem;
+    min-height: 50px;
+    border-radius: var(--radius-md);
+    font-family: 'Inter', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-ocean-depth);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    border: 1.5px solid transparent;
+  }
+
+  .nav-item-clean:hover {
+    background: var(--color-sea-mist);
+    color: var(--color-ocean-depth);
+    border-color: var(--color-stone-blue);
+    transform: translateX(2px);
+  }
+
+  .nav-item-clean.active {
+    background: var(--color-midnight-blue);
+    color: var(--color-cream);
+    border-color: var(--color-deep-teal);
+    box-shadow: var(--shadow-ocean);
+  }
+
+  /* Oceanic Sidebar Styles */
+  .sidebar-clean {
+    background: var(--color-off-white);
+    border-right: 2px solid var(--color-sea-mist);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Oceanic Header Styles */
+  .header-clean {
+    background: var(--color-off-white);
+    border-bottom: 2px solid var(--color-sea-mist);
+    padding: var(--space-lg);
+  }
+
+  /* Wave Divider */
+  .divider {
+    height: 1.5px;
+    background: linear-gradient(to right, transparent, var(--color-sea-mist), transparent);
+    width: 100%;
+    margin: var(--space-lg) 0;
+  }
+
+  /* Oceanic Badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3125rem 0.75rem;
+    font-family: 'Inter', sans-serif;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    background: var(--color-sea-mist);
+    color: var(--color-midnight-blue);
+    border: 1px solid var(--color-stone-blue);
+    letter-spacing: 0.02em;
+  }
+
+  .badge-primary {
+    background: var(--color-midnight-blue);
+    color: var(--color-cream);
+    border-color: var(--color-deep-teal);
+  }
+
+  .badge-success {
+    background: var(--color-aqua-mist);
+    color: var(--color-cream);
+    border-color: var(--color-seafoam);
+  }
+
+  /* Oceanic Alert Styles */
+  .alert {
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    border: 1.5px solid;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .alert-success {
+    background: rgba(149, 181, 188, 0.12);
+    border-color: var(--color-aqua-mist);
+    color: var(--color-seafoam);
+  }
+
+  .alert-error {
+    background: rgba(166, 124, 143, 0.12);
+    border-color: var(--color-error);
+    color: var(--color-deep-teal);
+  }
+
+  /* Oceanic Modal Backdrop */
+  .modal-backdrop-clean {
+    background: rgba(31, 45, 58, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* Oceanic Modal */
+  .modal-clean {
+    background: var(--color-off-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+    border: 2px solid var(--color-sea-mist);
+  }
+
+  /* Loading Spinner - Ocean Wave */
+  .spinner-minimal {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid var(--color-sea-mist);
+    border-top-color: var(--color-deep-teal);
+    border-radius: 50%;
+    animation: spin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Skeleton Loader - Ocean Waves */
+  .skeleton-clean {
+    background: linear-gradient(90deg,
+      var(--color-sea-mist) 25%,
+      var(--color-stone-blue) 50%,
+      var(--color-sea-mist) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+    border-radius: var(--radius-md);
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Oceanic Focus Styles */
+  *:focus {
+    outline: none;
+  }
+
+  *:focus-visible {
+    outline: 2.5px solid var(--color-deep-teal);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
+  }
+
+  button:focus-visible {
+    outline-offset: 2px;
+  }
+
+  /* Smooth Animations */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.2s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.15s ease-out;
+  }
+
+  /* Animated gradient for SYRENA text - Siren's Call */
+  .animate-gradient {
+    background-size: 200% auto;
+    animation: gradient-shift 3s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+  }
+
+  /* Siren's Shimmer Effect */
+  .siren-shimmer {
+    background: linear-gradient(135deg, var(--color-deep-teal) 0%, var(--color-ocean-grey) 50%, var(--color-siren-gold) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% auto;
+    animation: gradient-shift 4s ease infinite;
+  }
+
+  /* Lyre Accent - Golden Highlights */
+  .lyre-accent {
+    position: relative;
+  }
+
+  .lyre-accent::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-siren-gold), transparent);
+    opacity: 0.6;
+  }
+
+  /* Ocean Wave Animation */
+  @keyframes wave {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    50% { transform: translateY(-3px) scaleY(1.02); }
+  }
+
+  .animate-wave {
+    animation: wave 3s ease-in-out infinite;
+  }
+
+  /* Scrollbar - Oceanic */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-sea-mist);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ocean-grey);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--color-sea-mist);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-deep-teal);
+  }
+
+  /* Utility Classes */
+  .border-divider {
+    border-color: var(--color-sea-mist);
+  }
+
+  .text-muted {
+    color: var(--color-ocean-grey);
+  }
+
+  .bg-surface {
+    background: var(--color-cream);
+  }
+
+  /* Responsive Utilities */
+  @media (max-width: 768px) {
+    .hide-mobile { display: none !important; }
+
+    .card-minimal {
+      padding: var(--space-md);
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+    }
+  }
+
+  @media (min-width: 769px) {
+    .hide-desktop { display: none !important; }
+  }
+
+  /* Grid System */
+  .grid-clean {
+    display: grid;
+    gap: var(--space-lg);
+  }
+
+  /* Flex Utilities */
+  .flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Spacing Utilities */
+  .stack-xs { gap: var(--space-xs); }
+  .stack-sm { gap: var(--space-sm); }
+  .stack-md { gap: var(--space-md); }
+  .stack-lg { gap: var(--space-lg); }
+  .stack-xl { gap: var(--space-xl); }
+}
