@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Search, UserPlus, Check, X, Clock,
-  Send, UserCheck, UserX, Shield, ChevronRight, AlertCircle
+  Send, UserCheck, UserX, Shield, ChevronRight, AlertCircle, MapPin
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import FriendPlacesModal from './FriendPlacesModal';
 
 interface FriendsProps {
   isSidebarOpen?: boolean;
@@ -22,6 +23,8 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
   const [searchError, setSearchError] = useState('');
   const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [showFriendPlaces, setShowFriendPlaces] = useState(false);
 
   const supabase = createClient();
 
@@ -293,7 +296,11 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
                   friends.map((friendship) => (
                     <div
                       key={friendship.id}
-                      className="card-minimal p-4 flex items-center justify-between group"
+                      className="card-minimal p-4 flex items-center justify-between group hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        setSelectedFriend(friendship.friend);
+                        setShowFriendPlaces(true);
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center text-white font-medium">
@@ -306,13 +313,29 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
                           <p className="text-xs text-gray-500">@{friendship.friend.username}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeFriend(friendship.id)}
-                        className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:bg-red-50"
-                        aria-label="Remove friend"
-                      >
-                        <UserX size={16} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFriend(friendship.friend);
+                            setShowFriendPlaces(true);
+                          }}
+                          className="btn-secondary btn-sm flex items-center gap-1"
+                        >
+                          <MapPin size={14} />
+                          <span>View Places</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFriend(friendship.id);
+                          }}
+                          className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:bg-red-50"
+                          aria-label="Remove friend"
+                        >
+                          <UserX size={16} />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -505,6 +528,18 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
           </>
         )}
       </div>
+
+      {/* Friend Places Modal */}
+      {selectedFriend && (
+        <FriendPlacesModal
+          isOpen={showFriendPlaces}
+          onClose={() => {
+            setShowFriendPlaces(false);
+            setSelectedFriend(null);
+          }}
+          friend={selectedFriend}
+        />
+      )}
     </div>
   );
 }
