@@ -13,9 +13,10 @@ interface MyPlacesProps {
   onNavigateToPlace?: (lat: number, lng: number) => void;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
+  onEditProfile?: () => void;
 }
 
-export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSidebar }: MyPlacesProps) {
+export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSidebar, onEditProfile }: MyPlacesProps) {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -199,6 +200,14 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 )}
               </button>
             ))}
+            {onEditProfile && (
+              <button
+                onClick={onEditProfile}
+                className="whitespace-nowrap px-4 py-2 rounded-md text-sm font-sans font-medium bg-deep-teal text-cream border-2 border-stone-blue hover:bg-ocean-depth transition-all shadow-rustic-md"
+              >
+                Edit Profile
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

@@ -445,7 +445,7 @@ export default function HomePage() {
           </>
         )}
 
-        {activeTab === 'my-places' && <MyPlaces key={Date.now()} onNavigateToPlace={handleNavigateToPlace} isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} />}
+        {activeTab === 'my-places' && <MyPlaces key={Date.now()} onNavigateToPlace={handleNavigateToPlace} isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onEditProfile={() => setActiveTab('profile')} />}
         {activeTab === 'friends' && <Friends isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
         {activeTab === 'profile' && <ProfileSettings onBack={() => {
           setActiveTab('explore');

@@ -269,12 +269,18 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   useEffect(() => {
     if (!map) return;
 
+    console.log('Setting up map click listener. isAuthenticated:', isAuthenticated);
+
     const clickListener = map.addListener('click', async (event: google.maps.MapMouseEvent) => {
       console.log('Map clicked!', { isAuthenticated, latLng: event.latLng });
-      if (event.latLng && isAuthenticated) {
+      if (event.latLng) {
+        if (!isAuthenticated) {
+          console.log('User not authenticated, ignoring click');
+          return;
+        }
         const lat = event.latLng.lat();
         const lng = event.latLng.lng();
-        console.log('Setting location:', { lat, lng });
+        console.log('User is authenticated, setting location:', { lat, lng });
 
         // Set location and trigger animation
         setClickedLocation({ lat, lng });
