@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   MapPin, ArrowLeft, Grid3x3, List, Search, Trash2, Globe2,
   Utensils, Coffee, Camera, Mountain, ShoppingBag, Hotel,
-  Building2, Gem, Users, MoreHorizontal, DollarSign
+  Building2, Gem, Users, MoreHorizontal, DollarSign, Zap
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
@@ -24,6 +24,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const [friendProfile, setFriendProfile] = useState<any>(null);
 
   const supabase = createClient();
 
@@ -34,6 +35,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
   const loadFriendPlaces = async () => {
     setLoading(true);
     try {
+      // Load places
       const { data, error } = await supabase
         .from('places')
         .select('*')
@@ -44,6 +46,17 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
         console.error('Error loading friend places:', error);
       } else {
         setPlaces(data || []);
+      }
+
+      // Load friend's profile for XP/Level
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp, level')
+        .eq('id', friend.id)
+        .single();
+
+      if (profile) {
+        setFriendProfile(profile);
       }
     } catch (err) {
       console.error('Error:', err);
@@ -88,7 +101,8 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
 
   const stats = [
     { label: 'Total Places', value: places.length.toString(), icon: MapPin },
-    { label: 'Cities', value: getUniqueCities().toString(), icon: Globe2 }
+    { label: 'Cities', value: getUniqueCities().toString(), icon: Globe2 },
+    { label: 'Level', value: friendProfile?.level?.toString() || '1', icon: Zap, subtext: `${friendProfile?.xp || 0} XP` }
   ];
 
   return (
@@ -123,7 +137,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -132,6 +146,11 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
                 <div>
                   <p className="stat-value">{stat.value}</p>
                   <p className="stat-label">{stat.label}</p>
+                  {stat.subtext && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {stat.subtext}
+                    </p>
+                  )}
                 </div>
               </div>
             );

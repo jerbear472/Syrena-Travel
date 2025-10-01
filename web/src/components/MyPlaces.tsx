@@ -5,7 +5,7 @@ import {
   MapPin, Star, Clock, Heart, Grid3x3, List, Search,
   MoreVertical, Globe2, TrendingUp, ChevronDown, Filter,
   Plus, Utensils, Coffee, Camera, Mountain, ShoppingBag, Hotel, Trash2,
-  Building2, Gem, Users, MoreHorizontal, Menu
+  Building2, Gem, Users, MoreHorizontal, Menu, Zap
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
@@ -23,6 +23,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const supabase = createClient();
 
@@ -34,6 +35,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      // Load places
       const { data, error } = await supabase
         .from('places')
         .select('*')
@@ -42,6 +44,17 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
 
       if (data && !error) {
         setSavedPlaces(data);
+      }
+
+      // Load user profile for XP/Level
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp, level')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setUserProfile(profile);
       }
     }
     setLoading(false);
@@ -105,7 +118,8 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
 
   const stats = [
     { label: 'Total Places', value: savedPlaces.length.toString(), icon: MapPin },
-    { label: 'Cities', value: getUniqueCities().toString(), icon: Globe2 }
+    { label: 'Cities', value: getUniqueCities().toString(), icon: Globe2 },
+    { label: 'Level', value: userProfile?.level?.toString() || '1', icon: Zap, subtext: `${userProfile?.xp || 0} XP` }
   ];
 
   const sortOptions = [
@@ -137,7 +151,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           {stats.map((stat) => (
             <div
               key={stat.label}
@@ -155,6 +169,11 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
               <p className="text-caption">
                 {stat.label}
               </p>
+              {stat.subtext && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {stat.subtext}
+                </p>
+              )}
             </div>
           ))}
         </div>

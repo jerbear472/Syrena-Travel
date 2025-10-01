@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -28,6 +29,8 @@ interface Place {
 export default function MyPlacesScreen() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     loadMyPlaces();
@@ -46,6 +49,8 @@ export default function MyPlacesScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      setUser(user);
 
       const { data, error } = await supabase
         .from('places')
@@ -164,10 +169,27 @@ export default function MyPlacesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>My Places</Text>
-        <Text style={styles.subtitle}>
-          {places.length} {places.length === 1 ? 'place' : 'places'} saved
-        </Text>
+        <View>
+          <Text style={styles.title}>My Places</Text>
+          <Text style={styles.subtitle}>
+            {places.length} {places.length === 1 ? 'place' : 'places'} saved
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => setShowProfileModal(true)}
+        >
+          {user ? (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {user.email?.[0]?.toUpperCase()}
+              </Text>
+              <View style={styles.statusDot} />
+            </View>
+          ) : (
+            <Icon name="account-circle" size={32} color={theme.colors.midnightBlue} />
+          )}
+        </TouchableOpacity>
       </View>
 
       {places.length === 0 ? (
@@ -186,6 +208,49 @@ export default function MyPlacesScreen() {
           contentContainerStyle={styles.listContent}
         />
       )}
+
+      {/* Profile Modal */}
+      <Modal
+        visible={showProfileModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Profile</Text>
+              <TouchableOpacity onPress={() => setShowProfileModal(false)}>
+                <Icon name="close" size={24} color={theme.colors.midnightBlue} />
+              </TouchableOpacity>
+            </View>
+
+            {user && (
+              <View style={styles.profileContent}>
+                <View style={styles.profileAvatarLarge}>
+                  <Text style={styles.profileAvatarTextLarge}>
+                    {user.email?.[0]?.toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.profileName}>
+                  {user.email?.split('@')[0]}
+                </Text>
+                <Text style={styles.profileEmail}>{user.email}</Text>
+
+                <TouchableOpacity
+                  style={styles.signOutButton}
+                  onPress={async () => {
+                    await supabase.auth.signOut();
+                    setShowProfileModal(false);
+                  }}
+                >
+                  <Icon name="logout" size={20} color="#FFF" />
+                  <Text style={styles.signOutButtonText}>Sign Out</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -201,6 +266,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.offWhite,
     borderBottomWidth: 2,
     borderBottomColor: theme.colors.seaMist,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     fontSize: theme.fontSize.xxl,
@@ -292,5 +360,107 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     textAlign: 'center',
+  },
+  profileButton: {
+    padding: 4,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.midnightBlue,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.deepTeal,
+    position: 'relative',
+  },
+  avatarText: {
+    color: theme.colors.cream,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.aquaMist,
+    borderWidth: 2,
+    borderColor: theme.colors.offWhite,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(61, 85, 104, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.offWhite,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    paddingBottom: 40,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
+  },
+  modalTitle: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+  },
+  profileContent: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xxl,
+  },
+  profileAvatarLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.midnightBlue,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: theme.colors.deepTeal,
+    marginBottom: theme.spacing.lg,
+  },
+  profileAvatarTextLarge: {
+    color: theme.colors.cream,
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '600',
+  },
+  profileName: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+    marginBottom: theme.spacing.xs,
+  },
+  profileEmail: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.oceanGrey,
+    fontStyle: 'italic',
+    marginBottom: theme.spacing.xxl,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.oceanDepth,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 14,
+    paddingHorizontal: theme.spacing.xxl,
+    minWidth: 200,
+  },
+  signOutButtonText: {
+    color: '#FFF',
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
   },
 });
