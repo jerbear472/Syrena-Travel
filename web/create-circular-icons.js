@@ -43,7 +43,7 @@ async function createCircularIcon(inputPath, outputPath) {
 async function main() {
   const avatarsDir = path.join(__dirname, 'public', 'avatars');
 
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= 12; i++) {
     const input = path.join(avatarsDir, `odyssey-${i}.png`);
     const output = path.join(avatarsDir, `odyssey-${i}-circle.png`);
     await createCircularIcon(input, output);

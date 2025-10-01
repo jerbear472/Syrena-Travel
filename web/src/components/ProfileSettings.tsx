@@ -9,7 +9,12 @@ interface ProfileSettingsProps {
   onBack: () => void;
 }
 
-const ODYSSEY_ICONS = ['odyssey-1.png', 'odyssey-2.png', 'odyssey-3.png'];
+const ODYSSEY_ICONS = [
+  'odyssey-1.png', 'odyssey-2.png', 'odyssey-3.png',
+  'odyssey-4.png', 'odyssey-5.png', 'odyssey-6.png',
+  'odyssey-7.png', 'odyssey-8.png', 'odyssey-9.png',
+  'odyssey-10.png', 'odyssey-11.png', 'odyssey-12.png'
+];
 
 export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
   const [profile, setProfile] = useState<any>(null);
@@ -249,7 +254,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
             <p className="text-sm text-ocean-grey mb-4">
               Choose an Odyssey-themed icon that will appear as your map pin
             </p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-3">
               {ODYSSEY_ICONS.map((icon) => (
                 <button
                   key={icon}

@@ -77,6 +77,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
   const [showOnlyFriends, setShowOnlyFriends] = useState(false);
   const [markerAnimation, setMarkerAnimation] = useState({ scale: 1, opacity: 1 });
+  const [userOdysseyIcon, setUserOdysseyIcon] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -591,6 +592,19 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUser(user);
+
+    // Also load user's odyssey icon
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('odyssey_icon')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.odyssey_icon) {
+        setUserOdysseyIcon(profile.odyssey_icon);
+      }
+    }
   };
 
   const loadUserPlaces = async () => {
@@ -723,7 +737,9 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           <Marker
             position={clickedLocation}
             icon={{
-              url: '/lyre-circle.svg',
+              url: userOdysseyIcon
+                ? `/avatars/${userOdysseyIcon.replace('.png', '-circle.png')}`
+                : '/lyre-circle.svg',
               scaledSize: new google.maps.Size(60 * markerAnimation.scale, 60 * markerAnimation.scale),
               anchor: new google.maps.Point(30 * markerAnimation.scale, 30 * markerAnimation.scale)
             }}
