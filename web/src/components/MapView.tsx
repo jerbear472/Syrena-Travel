@@ -149,12 +149,12 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     }
   }, [showOnlyFriends]);
 
-  // Update markers when map, saved places, or zoom changes
+  // Update markers when map or saved places change (but NOT on zoom changes to prevent flashing)
   useEffect(() => {
     if (map && savedPlaces.length > 0) {
       updateMarkers(savedPlaces, currentZoom);
     }
-  }, [map, savedPlaces, currentZoom]);
+  }, [map, savedPlaces]);
 
   // Function to fetch place details from Google Places API
   const fetchPlaceDetails = async (lat: number, lng: number) => {
@@ -435,13 +435,13 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     places.forEach(place => {
       console.log('Creating marker for place:', place.name, 'at', place.lat, place.lng);
 
-      // Use the lyre-circle.svg for consistency
+      // Use the lyre-circle.svg for consistency - made larger (60x60)
       const marker = new google.maps.Marker({
         position: { lat: Number(place.lat), lng: Number(place.lng) },
         icon: {
           url: '/lyre-circle.svg',
-          scaledSize: new google.maps.Size(50, 50),
-          anchor: new google.maps.Point(25, 25)
+          scaledSize: new google.maps.Size(60, 60),
+          anchor: new google.maps.Point(30, 30)
         },
         map: null,
         zIndex: 1000,
@@ -614,14 +614,14 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
         {/* Saved places are now handled by marker clusterer */}
 
-        {/* Clicked location marker (temp) */}
+        {/* Clicked location marker (temp) - made larger (60x60) */}
         {clickedLocation && (
           <Marker
             position={clickedLocation}
             icon={{
               url: '/lyre-circle.svg',
-              scaledSize: new google.maps.Size(50 * markerAnimation.scale, 50 * markerAnimation.scale),
-              anchor: new google.maps.Point(25 * markerAnimation.scale, 25 * markerAnimation.scale)
+              scaledSize: new google.maps.Size(60 * markerAnimation.scale, 60 * markerAnimation.scale),
+              anchor: new google.maps.Point(30 * markerAnimation.scale, 30 * markerAnimation.scale)
             }}
             zIndex={1001}
             opacity={markerAnimation.opacity}
