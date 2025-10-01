@@ -21,6 +21,7 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
   const [searchError, setSearchError] = useState('');
+  const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -152,19 +153,34 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
 
   const sendFriendRequest = async (addresseeId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      alert('You must be logged in to send friend requests');
+      return;
+    }
 
-    const { error } = await supabase
-      .from('friendships')
-      .insert({
-        requester_id: user.id,
-        addressee_id: addresseeId,
-        status: 'pending'
-      });
+    setSendingRequestTo(addresseeId);
+    console.log('Sending friend request to:', addresseeId);
 
-    if (!error) {
-      await loadFriendsData();
-      await searchUsers(); // Refresh search results
+    try {
+      const { data, error } = await supabase
+        .from('friendships')
+        .insert({
+          requester_id: user.id,
+          addressee_id: addresseeId,
+          status: 'pending'
+        })
+        .select();
+
+      if (error) {
+        console.error('Error sending friend request:', error);
+        alert('Failed to send friend request: ' + error.message);
+      } else {
+        console.log('Friend request sent successfully:', data);
+        await loadFriendsData();
+        await searchUsers(); // Refresh search results
+      }
+    } finally {
+      setSendingRequestTo(null);
     }
   };
 
@@ -458,10 +474,20 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
                         ) : (
                           <button
                             onClick={() => sendFriendRequest(user.id)}
+                            disabled={sendingRequestTo === user.id}
                             className="btn-primary btn-sm flex items-center gap-1"
                           >
-                            <UserPlus size={14} />
-                            Add Friend
+                            {sendingRequestTo === user.id ? (
+                              <>
+                                <div className="spinner-minimal w-3 h-3"></div>
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus size={14} />
+                                Add Friend
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
