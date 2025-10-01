@@ -269,9 +269,9 @@ export default function FriendsScreen() {
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab === 'friends' && `Friends (${friends.length})`}
-                {tab === 'requests' && `Requests (${pendingRequests.length + sentRequests.length})`}
-                {tab === 'search' && 'Search'}
+                {tab === 'friends' ? `Friends (${friends.length})` : null}
+                {tab === 'requests' ? `Requests (${pendingRequests.length + sentRequests.length})` : null}
+                {tab === 'search' ? 'Search' : null}
               </Text>
             </TouchableOpacity>
           ))}

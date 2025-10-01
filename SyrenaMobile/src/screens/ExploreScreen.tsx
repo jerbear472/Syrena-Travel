@@ -297,8 +297,10 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={styles.headerSafeArea}>
+        <SafeAreaView>
+          <View style={styles.header}>
         <Text style={styles.title}>Explore</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
@@ -323,6 +325,8 @@ export default function ExploreScreen() {
             )}
           </TouchableOpacity>
         </View>
+          </View>
+        </SafeAreaView>
       </View>
 
       {showSearch && (
@@ -340,8 +344,6 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </View>
       )}
-
-      <Text style={styles.subtitle}>Tap anywhere on the map to save a place</Text>
 
       <MapView
         ref={mapRef}
@@ -632,7 +634,7 @@ export default function ExploreScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -640,6 +642,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.cream,
+  },
+  headerSafeArea: {
+    backgroundColor: theme.colors.offWhite,
   },
   header: {
     paddingHorizontal: theme.spacing.xl,
@@ -675,12 +680,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: theme.fontSize.md,
     color: theme.colors.midnightBlue,
-  },
-  subtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.oceanGrey,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.sm,
   },
   map: {
     flex: 1,

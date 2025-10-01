@@ -11,6 +11,7 @@ import ExploreScreen from './src/screens/ExploreScreen';
 import MyPlacesScreen from './src/screens/MyPlacesScreen';
 import FriendsScreen from './src/screens/FriendsScreen';
 import AuthScreen from './src/screens/AuthScreen';
+import SplashScreen from './src/components/SplashScreen';
 import theme from './src/theme';
 
 const Tab = createBottomTabNavigator();
@@ -53,6 +54,7 @@ function TabNavigator() {
 function App(): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -69,8 +71,12 @@ function App(): React.JSX.Element {
     };
   }, []);
 
-  if (loading) {
-    return <SafeAreaProvider />;
+  if (showSplash || loading) {
+    return (
+      <SafeAreaProvider>
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      </SafeAreaProvider>
+    );
   }
 
   return (
