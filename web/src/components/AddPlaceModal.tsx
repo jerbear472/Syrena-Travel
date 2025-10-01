@@ -106,22 +106,33 @@ export default function AddPlaceModal({
 
       console.log('Saving place:', { title, category: selectedCategory, lat: latitude, lng: longitude });
 
-      const { error: insertError } = await supabase
+      const placeData = {
+        name: title,
+        description: comment,
+        category: selectedCategory,
+        lat: latitude,
+        lng: longitude,
+        price_level: priceLevel > 0 ? priceLevel : null,
+        created_by: user.id,
+        visit_count: 0
+      };
+
+      console.log('Inserting place data:', placeData);
+
+      const { data: insertedData, error: insertError } = await supabase
         .from('places')
-        .insert({
-          name: title,
-          description: comment,
-          category: selectedCategory,
-          lat: latitude,
-          lng: longitude,
-          price_level: priceLevel > 0 ? priceLevel : null,
-          created_by: user.id,
-        });
+        .insert(placeData)
+        .select();
 
       if (insertError) {
         console.error('Insert error:', insertError);
+        console.error('Insert error details:', JSON.stringify(insertError, null, 2));
+        console.error('Insert error message:', insertError.message);
+        console.error('Insert error code:', insertError.code);
         throw insertError;
       }
+
+      console.log('Inserted data:', insertedData);
 
       console.log('Place saved successfully!');
 

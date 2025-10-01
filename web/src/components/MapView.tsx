@@ -419,60 +419,81 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           return;
         }
 
-        // Fetch places from friends only with their profile info
-        const { data, error } = await supabase
+        // Fetch places from friends
+        const { data: placesData, error: placesError } = await supabase
           .from('places')
-          .select(`
-            *,
-            profiles:created_by (
-              odyssey_icon
-            )
-          `)
+          .select('*')
           .in('created_by', friendIds)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error loading friends places:', error);
+        if (placesError) {
+          console.error('Error loading friends places:', placesError);
           return;
         }
 
-        console.log('Loaded friends places:', data?.length || 0);
-        console.log('First friend place with profile:', data?.[0]);
+        // Fetch profiles for all friends
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, odyssey_icon')
+          .in('id', friendIds);
 
-        if (data) {
-          setSavedPlaces(data);
+        console.log('Loaded friends places:', placesData?.length || 0);
+        console.log('Loaded friend profiles:', profilesData?.length || 0);
+
+        // Attach profile to each place based on created_by
+        const placesWithProfile = placesData?.map(place => {
+          const profile = profilesData?.find(p => p.id === place.created_by);
+          return {
+            ...place,
+            profile: profile
+          };
+        }) || [];
+
+        console.log('First friend place with profile:', placesWithProfile?.[0]);
+
+        if (placesWithProfile) {
+          setSavedPlaces(placesWithProfile);
           if (map) {
             const zoom = map.getZoom() || currentZoom;
-            updateMarkers(data, zoom);
+            updateMarkers(placesWithProfile, zoom);
           }
         }
       } else {
-        // Load user's own places with profile info
-        const { data, error } = await supabase
+        // Load user's own places
+        const { data: placesData, error: placesError } = await supabase
           .from('places')
-          .select(`
-            *,
-            profiles:created_by (
-              odyssey_icon
-            )
-          `)
+          .select('*')
           .eq('created_by', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error loading places:', error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
+        if (placesError) {
+          console.error('Error loading places:', placesError);
           return;
         }
 
-        console.log('Loaded my places:', data?.length || 0);
-        console.log('First my place with profile:', data?.[0]);
+        // Get user's profile for odyssey icon
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('odyssey_icon')
+          .eq('id', user.id)
+          .single();
 
-        if (data) {
-          setSavedPlaces(data);
+        console.log('Loaded my places:', placesData?.length || 0);
+        console.log('User profile odyssey_icon:', profileData?.odyssey_icon);
+
+        // Attach profile to each place
+        const placesWithProfile = placesData?.map(place => ({
+          ...place,
+          profile: profileData
+        })) || [];
+
+        console.log('First my place with profile:', placesWithProfile?.[0]);
+
+        if (placesWithProfile) {
+          setSavedPlaces(placesWithProfile);
           if (map) {
             const zoom = map.getZoom() || currentZoom;
-            updateMarkers(data, zoom);
+            updateMarkers(placesWithProfile, zoom);
           }
         }
       }
@@ -502,7 +523,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       console.log('Place data:', JSON.stringify(place, null, 2));
 
       // Get the odyssey icon from the place's creator profile
-      const odysseyIcon = place.profiles?.odyssey_icon;
+      const odysseyIcon = place.profile?.odyssey_icon;
       console.log('Odyssey icon for', place.name, ':', odysseyIcon);
 
       let iconConfig;

@@ -74,11 +74,12 @@ export default function PlaceDetailsModal({
       // Load visits
       const { data: visitsData, error: visitsError } = await supabase
         .from('place_visits')
-        .select('*, user_id')
+        .select('*')
         .eq('place_id', place.id);
 
       if (visitsError) {
         console.error('Error loading visits:', visitsError);
+        console.error('Visits error details:', JSON.stringify(visitsError, null, 2));
         // Table might not exist yet
         if (visitsError.code === '42P01') {
           console.log('Visits table does not exist. Please run the setup SQL.');
@@ -88,9 +89,9 @@ export default function PlaceDetailsModal({
         const enrichedVisits = await Promise.all(
           visitsData.map(async (visit) => {
             const { data: userData } = await supabase
-              .from('auth.users')
-              .select('email')
-              .eq('id', visit.user_id)
+              .from('profiles')
+              .select('email, display_name, username')
+              .eq('id', visit.visitor_id)
               .single();
             return { ...visit, user: userData };
           })
@@ -98,7 +99,7 @@ export default function PlaceDetailsModal({
         setVisits(enrichedVisits);
         // Check if current user has visited
         if (user) {
-          setHasVisited(visitsData.some(v => v.user_id === user.id));
+          setHasVisited(visitsData.some(v => v.visitor_id === user.id));
         }
       }
     } catch (error) {
@@ -152,7 +153,7 @@ export default function PlaceDetailsModal({
         .from('place_visits')
         .delete()
         .eq('place_id', place.id)
-        .eq('user_id', user.id);
+        .eq('visitor_id', user.id);
       error = result.error;
     } else {
       // Add visit
@@ -160,7 +161,7 @@ export default function PlaceDetailsModal({
         .from('place_visits')
         .insert({
           place_id: place.id,
-          user_id: user.id
+          visitor_id: user.id
         });
       error = result.error;
     }
