@@ -1,6 +1,21 @@
 import { createClient } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
+interface ProfileData {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+interface FriendshipData {
+  id: string;
+  status: string;
+  created_at: string;
+  requester: ProfileData;
+  addressee: ProfileData;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = createClient();
@@ -29,10 +44,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch friendships' }, { status: 500 });
     }
 
+    if (!friendships) {
+      return NextResponse.json({
+        friends: [],
+        pending_sent: [],
+        pending_received: []
+      }, { status: 200 });
+    }
+
     // Transform the data to show the friend (not the current user)
-    const transformedFriendships = friendships.map(friendship => {
-      const isRequester = friendship.requester.id === user.id;
-      const friend = isRequester ? friendship.addressee : friendship.requester;
+    const transformedFriendships = (friendships as any[]).map((friendship: any) => {
+      const requester = Array.isArray(friendship.requester) ? friendship.requester[0] : friendship.requester;
+      const addressee = Array.isArray(friendship.addressee) ? friendship.addressee[0] : friendship.addressee;
+
+      const isRequester = requester?.id === user.id;
+      const friend = isRequester ? addressee : requester;
 
       return {
         id: friendship.id,
@@ -40,10 +66,10 @@ export async function GET(request: NextRequest) {
         created_at: friendship.created_at,
         is_requester: isRequester,
         friend: {
-          id: friend.id,
-          username: friend.username,
-          display_name: friend.display_name,
-          avatar_url: friend.avatar_url
+          id: friend?.id || '',
+          username: friend?.username || '',
+          display_name: friend?.display_name || '',
+          avatar_url: friend?.avatar_url || null
         }
       };
     });
