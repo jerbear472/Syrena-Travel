@@ -50,6 +50,9 @@ const mapStyles = [
   }
 ];
 
+// Keep libraries array as a constant to prevent reloading
+const GOOGLE_MAPS_LIBRARIES: ("places")[] = ['places'];
+
 interface MapViewProps {
   isAuthenticated?: boolean;
   center?: { lat: number; lng: number } | null;
@@ -88,12 +91,17 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
     id: 'google-map-script',
-    libraries: ['places']
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   useEffect(() => {
     setIsAuthenticated(isAuthProp);
   }, [isAuthProp]);
+
+  // Log when user odyssey icon changes
+  useEffect(() => {
+    console.log('User odyssey icon updated to:', userOdysseyIcon);
+  }, [userOdysseyIcon]);
 
   // Navigate to place when center prop changes
   useEffect(() => {
@@ -424,7 +432,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         const { data: placesData, error: placesError } = await supabase
           .from('places')
           .select('*')
-          .in('created_by', friendIds)
+          .in('user_id', friendIds)
           .order('created_at', { ascending: false });
 
         if (placesError) {
@@ -441,9 +449,9 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         console.log('Loaded friends places:', placesData?.length || 0);
         console.log('Loaded friend profiles:', profilesData?.length || 0);
 
-        // Attach profile to each place based on created_by
+        // Attach profile to each place based on user_id
         const placesWithProfile = placesData?.map(place => {
-          const profile = profilesData?.find(p => p.id === place.created_by);
+          const profile = profilesData?.find(p => p.id === place.user_id);
           return {
             ...place,
             profile: profile
@@ -464,7 +472,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         const { data: placesData, error: placesError } = await supabase
           .from('places')
           .select('*')
-          .eq('created_by', user.id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (placesError) {
@@ -601,6 +609,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         .eq('id', user.id)
         .single();
 
+      console.log('Loaded user odyssey icon:', profile?.odyssey_icon);
       if (profile?.odyssey_icon) {
         setUserOdysseyIcon(profile.odyssey_icon);
       }
@@ -613,7 +622,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       const { data, error } = await supabase
         .from('places')
         .select('*')
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (data && !error) {
@@ -733,23 +742,27 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         {/* Saved places are now handled by marker clusterer */}
 
         {/* Clicked location marker (temp) - made larger (60x60) */}
-        {clickedLocation && (
-          <Marker
-            position={clickedLocation}
-            icon={{
-              url: userOdysseyIcon
-                ? `/avatars/${userOdysseyIcon.replace('.png', '-circle.png')}`
-                : '/lyre-circle.svg',
-              scaledSize: new google.maps.Size(60 * markerAnimation.scale, 60 * markerAnimation.scale),
-              anchor: new google.maps.Point(30 * markerAnimation.scale, 30 * markerAnimation.scale)
-            }}
-            zIndex={1001}
-            opacity={markerAnimation.opacity}
-            options={{
-              optimized: false
-            }}
-          />
-        )}
+        {clickedLocation && (() => {
+          const iconUrl = userOdysseyIcon
+            ? `/avatars/${userOdysseyIcon.replace('.png', '-circle.png')}`
+            : '/lyre-circle.svg';
+          console.log('Rendering temporary marker with icon:', iconUrl, 'userOdysseyIcon:', userOdysseyIcon);
+          return (
+            <Marker
+              position={clickedLocation}
+              icon={{
+                url: iconUrl,
+                scaledSize: new google.maps.Size(60 * markerAnimation.scale, 60 * markerAnimation.scale),
+                anchor: new google.maps.Point(30 * markerAnimation.scale, 30 * markerAnimation.scale)
+              }}
+              zIndex={1001}
+              opacity={markerAnimation.opacity}
+              options={{
+                optimized: false
+              }}
+            />
+          );
+        })()}
       </GoogleMap>
 
       {/* Center on user button - positioned below map controls */}

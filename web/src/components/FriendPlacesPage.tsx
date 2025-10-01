@@ -39,7 +39,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
       const { data, error } = await supabase
         .from('places')
         .select('*')
-        .eq('created_by', friend.id)
+        .eq('user_id', friend.id)
         .order('created_at', { ascending: false });
 
       if (error) {

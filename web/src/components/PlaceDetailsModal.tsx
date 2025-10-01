@@ -41,7 +41,7 @@ export default function PlaceDetailsModal({
     try {
       // Check if current user is the owner
       const { data: { user } } = await supabase.auth.getUser();
-      setIsOwner(user?.id === place.created_by);
+      setIsOwner(user?.id === place.user_id);
 
       // Load comments
       const { data: commentsData, error: commentsError } = await supabase

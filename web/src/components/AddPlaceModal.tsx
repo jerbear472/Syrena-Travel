@@ -134,7 +134,7 @@ export default function AddPlaceModal({
         category: selectedCategory,
         lat: latitude,
         lng: longitude,
-        created_by: user.id,
+        user_id: user.id,
         visit_count: 0
       };
 
