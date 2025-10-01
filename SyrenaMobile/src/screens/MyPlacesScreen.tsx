@@ -21,34 +21,60 @@ interface Place {
   lng: number;
   description?: string;
   category?: string;
-  rating?: number;
   created_at: string;
   created_by: string;
+  visit_count?: number;
 }
 
-export default function MyPlacesScreen({ navigation }: any) {
+export default function MyPlacesScreen({ navigation, route }: any) {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [viewingFriend, setViewingFriend] = useState<{id: string; name: string} | null>(null);
 
   useEffect(() => {
-    loadMyPlaces();
+    if (route?.params?.friendId) {
+      setViewingFriend({
+        id: route.params.friendId,
+        name: route.params.friendName,
+      });
+      loadFriendPlaces(route.params.friendId);
+    } else {
+      setViewingFriend(null);
+      loadMyPlaces();
+    }
 
     const subscription = supabase
       .channel('my-places')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'places' }, loadMyPlaces)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'places' }, () => {
+        if (route?.params?.friendId) {
+          loadFriendPlaces(route.params.friendId);
+        } else {
+          loadMyPlaces();
+        }
+      })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [route?.params?.friendId]);
 
   const loadMyPlaces = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('Auth error:', userError);
+        Alert.alert('Authentication Error', 'Please try logging in again.');
+        return;
+      }
+
+      if (!user) {
+        console.log('No user found');
+        return;
+      }
 
       setUser(user);
 
@@ -58,10 +84,39 @@ export default function MyPlacesScreen({ navigation }: any) {
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('Database error:', error);
+        Alert.alert('Error', 'Failed to load your places. Please try again.');
+        return;
+      }
+
+      setPlaces(data || []);
+    } catch (error: any) {
+      console.error('Error loading places:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFriendPlaces = async (friendId: string) => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+      }
+
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .eq('created_by', friendId)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       setPlaces(data || []);
     } catch (error: any) {
-      console.error('Error loading places:', error.message || String(error));
+      console.error('Error loading friend places:', error.message || String(error));
     } finally {
       setLoading(false);
     }
@@ -74,11 +129,15 @@ export default function MyPlacesScreen({ navigation }: any) {
         .delete()
         .eq('id', placeId);
 
-      if (error) throw error;
-      loadMyPlaces();
-      Alert.alert('Success', 'Place deleted');
+      if (error) {
+        throw new Error('Failed to delete place: ' + error.message);
+      }
+
+      await loadMyPlaces();
+      Alert.alert('Success', 'Place deleted successfully');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('Delete error:', error);
+      Alert.alert('Error', error.message || 'Failed to delete place');
     }
   };
 
@@ -159,15 +218,17 @@ export default function MyPlacesScreen({ navigation }: any) {
           )}
           <Text style={styles.placeDate}>{formatDate(item.created_at)}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            confirmDelete(item.id, item.name);
-          }}
-        >
-          <Icon name="delete" size={20} color="#EF4444" />
-        </TouchableOpacity>
+        {!viewingFriend && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              confirmDelete(item.id, item.name);
+            }}
+          >
+            <Icon name="delete" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -184,30 +245,48 @@ export default function MyPlacesScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>My Places</Text>
-          <Text style={styles.subtitle}>
-            {places.length} {places.length === 1 ? 'place' : 'places'} saved
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => setShowProfileModal(true)}
-        >
-          {user ? (
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user.email?.[0]?.toUpperCase()}
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            {viewingFriend && (
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.setParams({ friendId: undefined, friendName: undefined });
+                }}
+                style={styles.backButton}
+              >
+                <Icon name="arrow-back" size={24} color={theme.colors.midnightBlue} />
+              </TouchableOpacity>
+            )}
+            <View>
+              <Text style={styles.title}>
+                {viewingFriend ? `${viewingFriend.name}'s Places` : 'My Places'}
               </Text>
-              <View style={styles.statusDot} />
+              <Text style={styles.subtitle}>
+                {places.length} {places.length === 1 ? 'place' : 'places'} saved
+              </Text>
             </View>
-          ) : (
-            <Icon name="account-circle" size={32} color={theme.colors.midnightBlue} />
+          </View>
+          {!viewingFriend && (
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => setShowProfileModal(true)}
+            >
+              {user ? (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {user.email?.[0]?.toUpperCase()}
+                  </Text>
+                  <View style={styles.statusDot} />
+                </View>
+              ) : (
+                <Icon name="account-circle" size={32} color={theme.colors.midnightBlue} />
+              )}
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      </SafeAreaView>
 
       {places.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -268,7 +347,7 @@ export default function MyPlacesScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -276,6 +355,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.cream,
+  },
+  headerSafeArea: {
+    backgroundColor: theme.colors.offWhite,
   },
   header: {
     paddingHorizontal: theme.spacing.xl,
@@ -287,11 +369,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    flex: 1,
+  },
+  backButton: {
+    padding: 4,
+  },
   title: {
     fontSize: theme.fontSize.xxl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: 'Crimson Pro',
   },
   subtitle: {
     fontSize: theme.fontSize.sm,
@@ -334,7 +425,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: 4,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
   },
   placeNotes: {
     fontSize: theme.fontSize.sm,
@@ -378,7 +469,7 @@ const styles = StyleSheet.create({
     color: theme.colors.midnightBlue,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
   },
   emptySubtitle: {
     fontSize: theme.fontSize.sm,
@@ -440,7 +531,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
   },
   profileContent: {
     alignItems: 'center',
@@ -468,7 +559,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.xs,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
   },
   profileEmail: {
     fontSize: theme.fontSize.sm,

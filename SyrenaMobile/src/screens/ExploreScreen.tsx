@@ -17,6 +17,7 @@ import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { supabase } from '../lib/supabase';
 import theme from '../theme';
 
@@ -27,8 +28,10 @@ interface Place {
   lng: number;
   description?: string;
   category?: string;
-  rating?: number;
   created_by: string;
+  photo_url?: string;
+  odyssey_icon?: string;
+  visit_count?: number;
 }
 
 const categories = [
@@ -43,6 +46,21 @@ const categories = [
   { id: 'people-watching', name: 'People Watching', icon: 'people' },
   { id: 'other', name: 'Other', icon: 'more-horiz' },
 ];
+
+const odysseyIconMap: {[key: string]: any} = {
+  'odyssey-1-circle.png': require('../assets/images/odyssey/odyssey-1-circle.png'),
+  'odyssey-2-circle.png': require('../assets/images/odyssey/odyssey-2-circle.png'),
+  'odyssey-3-circle.png': require('../assets/images/odyssey/odyssey-3-circle.png'),
+  'odyssey-4-circle.png': require('../assets/images/odyssey/odyssey-4-circle.png'),
+  'odyssey-5-circle.png': require('../assets/images/odyssey/odyssey-5-circle.png'),
+  'odyssey-6-circle.png': require('../assets/images/odyssey/odyssey-6-circle.png'),
+  'odyssey-7-circle.png': require('../assets/images/odyssey/odyssey-7-circle.png'),
+  'odyssey-8-circle.png': require('../assets/images/odyssey/odyssey-8-circle.png'),
+  'odyssey-9-circle.png': require('../assets/images/odyssey/odyssey-9-circle.png'),
+  'odyssey-10-circle.png': require('../assets/images/odyssey/odyssey-10-circle.png'),
+  'odyssey-11-circle.png': require('../assets/images/odyssey/odyssey-11-circle.png'),
+  'odyssey-12-circle.png': require('../assets/images/odyssey/odyssey-12-circle.png'),
+};
 
 export default function ExploreScreen({ route }: any) {
   const mapRef = useRef<MapView>(null);
@@ -66,8 +84,13 @@ export default function ExploreScreen({ route }: any) {
   const [showFriendsSelector, setShowFriendsSelector] = useState(false);
   const [friends, setFriends] = useState<any[]>([]);
   const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
-  const [odysseyIcon, setOdysseyIcon] = useState<string | null>(null);
+  const [odysseyIcon, setOdysseyIcon] = useState<string>('odyssey-1-circle.png');
   const [savingIcon, setSavingIcon] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<{uri: string; type: string; name: string} | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     getCurrentLocation();
@@ -148,20 +171,30 @@ export default function ExploreScreen({ route }: any) {
 
   const loadFriends = async (userId: string) => {
     try {
+      // Query friends table and join with profiles to get friend details
       const { data, error } = await supabase
-        .from('friendships')
+        .from('friends')
         .select(`
-          *,
-          friend:friend_id (
-            id,
-            email
-          )
+          id,
+          friend_id,
+          status,
+          profiles!inner(id, email)
         `)
         .eq('user_id', userId)
         .eq('status', 'accepted');
 
       if (error) throw error;
-      setFriends(data || []);
+
+      // Transform data to match expected format
+      const transformedData = data?.map(friendship => ({
+        ...friendship,
+        friend: {
+          id: friendship.profiles?.id,
+          email: friendship.profiles?.email
+        }
+      })) || [];
+
+      setFriends(transformedData);
     } catch (error: any) {
       console.error('Error loading friends:', error.message || String(error));
     }
@@ -190,10 +223,23 @@ export default function ExploreScreen({ route }: any) {
           longitude,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
-        });
+        }, 1000);
       },
       (error) => {
-        console.error('Location error:', error.message || String(error));
+        console.error('Location error:', error);
+        Alert.alert(
+          'Location Error',
+          'Unable to get your current location. Please check location permissions in Settings.',
+          [{ text: 'OK' }]
+        );
+        // Fallback to default location (San Francisco)
+        const defaultLocation = { latitude: 37.78825, longitude: -122.4324 };
+        setUserLocation(defaultLocation);
+        mapRef.current?.animateToRegion({
+          ...defaultLocation,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }, 1000);
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
     );
@@ -231,6 +277,7 @@ export default function ExploreScreen({ route }: any) {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
       });
 
       if (response.ok) {
@@ -270,7 +317,8 @@ export default function ExploreScreen({ route }: any) {
         }
       }
     } catch (error: any) {
-      console.error('Error fetching place details:', error.message || String(error));
+      // Silently fail - place details are optional
+      console.log('Place details not available (this is optional)');
     } finally {
       setLoadingPlaceDetails(false);
     }
@@ -285,36 +333,172 @@ export default function ExploreScreen({ route }: any) {
     fetchPlaceDetails(coordinate.latitude, coordinate.longitude);
   };
 
+  const pickImage = () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => {
+            launchCamera(
+              {
+                mediaType: 'photo',
+                quality: 0.8,
+                maxWidth: 1024,
+                maxHeight: 1024,
+              },
+              (response) => {
+                if (response.assets && response.assets[0]) {
+                  const asset = response.assets[0];
+                  setSelectedPhoto({
+                    uri: asset.uri || '',
+                    type: asset.type || 'image/jpeg',
+                    name: asset.fileName || `photo_${Date.now()}.jpg`,
+                  });
+                }
+              }
+            );
+          },
+        },
+        {
+          text: 'Choose from Library',
+          onPress: () => {
+            launchImageLibrary(
+              {
+                mediaType: 'photo',
+                quality: 0.8,
+                maxWidth: 1024,
+                maxHeight: 1024,
+              },
+              (response) => {
+                if (response.assets && response.assets[0]) {
+                  const asset = response.assets[0];
+                  setSelectedPhoto({
+                    uri: asset.uri || '',
+                    type: asset.type || 'image/jpeg',
+                    name: asset.fileName || `photo_${Date.now()}.jpg`,
+                  });
+                }
+              }
+            );
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const uploadPhoto = async (userId: string): Promise<string | null> => {
+    if (!selectedPhoto) return null;
+
+    setUploadingPhoto(true);
+    try {
+      // Read the file as base64
+      const fileExt = selectedPhoto.name.split('.').pop();
+      const filePath = `${userId}/${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const response = await fetch(selectedPhoto.uri);
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+
+      const { error: uploadError } = await supabase.storage
+        .from('place-photos')
+        .upload(filePath, arrayBuffer, {
+          contentType: selectedPhoto.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('place-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading photo:', error);
+      Alert.alert('Error', 'Failed to upload photo');
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const savePlace = async () => {
-    if (!placeName || !selectedCategory || !newPlace) {
-      Alert.alert('Error', 'Please fill in place name and select a category');
+    if (!placeName?.trim()) {
+      Alert.alert('Missing Information', 'Please enter a place name');
+      return;
+    }
+
+    if (!selectedCategory) {
+      Alert.alert('Missing Information', 'Please select a category');
+      return;
+    }
+
+    if (!newPlace) {
+      Alert.alert('Error', 'Invalid location. Please try again.');
       return;
     }
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      const { error } = await supabase.from('places').insert({
-        name: placeName,
+      if (userError) {
+        throw new Error('Authentication error: ' + userError.message);
+      }
+
+      if (!user) {
+        throw new Error('You must be logged in to save places');
+      }
+
+      // Upload photo if selected
+      let photoUrl = null;
+      if (selectedPhoto) {
+        photoUrl = await uploadPhoto(user.id);
+        if (!photoUrl) {
+          // Photo upload failed, but continue anyway
+          console.warn('Photo upload failed, continuing without photo');
+        }
+      }
+
+      const placeData = {
+        name: placeName.trim(),
         lat: newPlace.lat,
         lng: newPlace.lng,
-        description: placeDescription,
+        description: placeDescription?.trim() || null,
         category: selectedCategory,
         price_level: priceLevel > 0 ? priceLevel : null,
+        photo_url: photoUrl,
+        odyssey_icon: odysseyIcon,
         created_by: user.id,
-      });
+      };
 
-      if (error) throw error;
+      const { error } = await supabase.from('places').insert(placeData);
 
+      if (error) {
+        throw new Error('Failed to save place: ' + error.message);
+      }
+
+      // Success!
       setShowAddModal(false);
       resetForm();
-      loadPlaces();
+      await loadPlaces();
 
-      Alert.alert('Success', 'Place saved!');
+      Alert.alert('Success', `"${placeName}" has been saved!`);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('Error saving place:', error);
+      Alert.alert(
+        'Error Saving Place',
+        error.message || 'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }
@@ -327,6 +511,7 @@ export default function ExploreScreen({ route }: any) {
     setNewPlace(null);
     setPlaceDetails(null);
     setPriceLevel(0);
+    setSelectedPhoto(null);
   };
 
   const getCategoryIcon = (categoryId: string) => {
@@ -337,6 +522,7 @@ export default function ExploreScreen({ route }: any) {
   const handleMarkerPress = (place: Place) => {
     setSelectedPlace(place);
     setShowDetailsModal(true);
+    loadComments(place.id);
   };
 
   const handleDeletePlace = async (placeId: string) => {
@@ -372,6 +558,77 @@ export default function ExploreScreen({ route }: any) {
     );
   };
 
+  const markAsVisited = async (placeId: string) => {
+    try {
+      const { data: place } = await supabase
+        .from('places')
+        .select('visit_count')
+        .eq('id', placeId)
+        .single();
+
+      const newCount = (place?.visit_count || 0) + 1;
+
+      const { error } = await supabase
+        .from('places')
+        .update({ visit_count: newCount })
+        .eq('id', placeId);
+
+      if (error) throw error;
+
+      // Update local state
+      if (selectedPlace) {
+        setSelectedPlace({ ...selectedPlace, visit_count: newCount });
+      }
+      loadPlaces();
+      Alert.alert('Success', 'Marked as visited!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const loadComments = async (placeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('place_comments')
+        .select('*, profiles(username, display_name)')
+        .eq('place_id', placeId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setComments(data || []);
+    } catch (error: any) {
+      console.error('Error loading comments:', error.message);
+    }
+  };
+
+  const submitComment = async () => {
+    if (!newComment.trim() || !selectedPlace) return;
+
+    setSubmittingComment(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('place_comments')
+        .insert({
+          place_id: selectedPlace.id,
+          user_id: user.id,
+          comment: newComment.trim(),
+        });
+
+      if (error) throw error;
+
+      setNewComment('');
+      loadComments(selectedPlace.id);
+      Alert.alert('Success', 'Comment added!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
   const getMarkerColor = (categoryId: string) => {
     const colors: {[key: string]: string} = {
       restaurant: '#5B8C9E',
@@ -390,36 +647,34 @@ export default function ExploreScreen({ route }: any) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerSafeArea}>
-        <SafeAreaView>
-          <View style={styles.header}>
-        <Text style={styles.title}>Explore</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => setShowSearch(!showSearch)}
-          >
-            <Icon name="search" size={24} color={theme.colors.midnightBlue} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => setShowProfileModal(true)}
-          >
-            {user ? (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {user.email?.[0]?.toUpperCase()}
-                </Text>
-                <View style={styles.statusDot} />
-              </View>
-            ) : (
-              <Icon name="account-circle" size={32} color={theme.colors.midnightBlue} />
-            )}
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Explore</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => setShowSearch(!showSearch)}
+            >
+              <Icon name="search" size={24} color={theme.colors.midnightBlue} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => setShowProfileModal(true)}
+            >
+              {user ? (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {user.email?.[0]?.toUpperCase()}
+                  </Text>
+                  <View style={styles.statusDot} />
+                </View>
+              ) : (
+                <Icon name="account-circle" size={32} color={theme.colors.midnightBlue} />
+              )}
+            </TouchableOpacity>
           </View>
-        </SafeAreaView>
-      </View>
+        </View>
+      </SafeAreaView>
 
       {showSearch && (
         <View style={styles.searchContainer}>
@@ -437,11 +692,21 @@ export default function ExploreScreen({ route }: any) {
         </View>
       )}
 
+      {/* Help Banner */}
+      {places.length === 0 && (
+        <View style={styles.helpBanner}>
+          <Icon name="info-outline" size={16} color={theme.colors.oceanGrey} />
+          <Text style={styles.helpText}>
+            Tap and hold to add a place • Scroll with one finger
+          </Text>
+        </View>
+      )}
+
       <MapView
         ref={mapRef}
         style={styles.map}
         showsUserLocation
-        showsMyLocationButton
+        showsMyLocationButton={false}
         onPress={handleMapPress}
         initialRegion={{
           latitude: userLocation?.latitude || 37.78825,
@@ -450,16 +715,31 @@ export default function ExploreScreen({ route }: any) {
           longitudeDelta: 0.0421,
         }}
       >
-        {places.map((place) => (
-          <Marker
-            key={place.id}
-            coordinate={{ latitude: place.lat, longitude: place.lng }}
-            title={place.name}
-            description={place.description}
-            pinColor={getMarkerColor(place.category || 'other')}
-            onPress={() => handleMarkerPress(place)}
-          />
-        ))}
+        {places.map((place) => {
+          // Use the place's saved odyssey icon
+          const iconSource = place.odyssey_icon && odysseyIconMap[place.odyssey_icon]
+            ? odysseyIconMap[place.odyssey_icon]
+            : undefined;
+
+          return (
+            <Marker
+              key={place.id}
+              coordinate={{ latitude: place.lat, longitude: place.lng }}
+              title={place.name}
+              description={place.description}
+              pinColor={!iconSource ? getMarkerColor(place.category || 'other') : undefined}
+              onPress={() => handleMarkerPress(place)}
+            >
+              {iconSource && (
+                <Image
+                  source={iconSource}
+                  style={{ width: 40, height: 40 }}
+                  resizeMode="contain"
+                />
+              )}
+            </Marker>
+          );
+        })}
       </MapView>
 
       {/* Floating Action Buttons */}
@@ -600,6 +880,35 @@ export default function ExploreScreen({ route }: any) {
                 </View>
               )}
 
+              {/* Photo Upload */}
+              <View style={styles.photoSection}>
+                <Text style={styles.label}>Add Photo (Optional)</Text>
+                {selectedPhoto ? (
+                  <View style={styles.photoPreviewContainer}>
+                    <Image
+                      source={{ uri: selectedPhoto.uri }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => setSelectedPhoto(null)}
+                    >
+                      <Icon name="close" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.addPhotoButton}
+                    onPress={pickImage}
+                    disabled={loading || uploadingPhoto}
+                  >
+                    <Icon name="add-a-photo" size={32} color={theme.colors.oceanGrey} />
+                    <Text style={styles.addPhotoText}>Tap to add photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <TextInput
                 style={styles.input}
                 placeholder="Place name *"
@@ -682,6 +991,17 @@ export default function ExploreScreen({ route }: any) {
             {selectedPlace && (
               <View>
                 <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* User Photo */}
+                  {selectedPlace.photo_url && (
+                    <View style={styles.placePhotoContainer}>
+                      <Image
+                        source={{ uri: selectedPlace.photo_url }}
+                        style={styles.placePhotoLarge}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  )}
+
                   {/* Category Icon */}
                   <View style={styles.detailsIconContainer}>
                     <Icon
@@ -703,23 +1023,12 @@ export default function ExploreScreen({ route }: any) {
                   </Text>
                 </View>
 
-                {/* Rating */}
-                {selectedPlace.rating && selectedPlace.rating > 0 && (
-                  <View style={styles.detailsRow}>
-                    <Icon name="star" size={18} color="#F59E0B" />
-                    <Text style={styles.detailsLabel}>Rating:</Text>
-                    <View style={styles.ratingDisplay}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Icon
-                          key={star}
-                          name={star <= (selectedPlace.rating || 0) ? 'star' : 'star-border'}
-                          size={16}
-                          color={star <= (selectedPlace.rating || 0) ? '#F59E0B' : '#D1D5DB'}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                )}
+                {/* Visit Count */}
+                <View style={styles.detailsRow}>
+                  <Icon name="visibility" size={18} color={theme.colors.oceanGrey} />
+                  <Text style={styles.detailsLabel}>Visits:</Text>
+                  <Text style={styles.detailsValue}>{selectedPlace.visit_count || 0}</Text>
+                </View>
 
                 {/* Description */}
                 {selectedPlace.description && (
@@ -741,6 +1050,62 @@ export default function ExploreScreen({ route }: any) {
                   <Text style={styles.detailsValue}>
                     {selectedPlace.lat.toFixed(6)}, {selectedPlace.lng.toFixed(6)}
                   </Text>
+                </View>
+
+                {/* Mark as Visited Button */}
+                <TouchableOpacity
+                  style={styles.visitButton}
+                  onPress={() => markAsVisited(selectedPlace.id)}
+                >
+                  <Icon name="check-circle" size={20} color="#FFF" />
+                  <Text style={styles.visitButtonText}>Mark as Visited</Text>
+                </TouchableOpacity>
+
+                {/* Comments Section */}
+                <View style={styles.commentsSection}>
+                  <Text style={styles.commentsSectionTitle}>Comments</Text>
+
+                  {/* Add Comment */}
+                  <View style={styles.addCommentContainer}>
+                    <TextInput
+                      style={styles.commentInput}
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChangeText={setNewComment}
+                      multiline
+                      editable={!submittingComment}
+                    />
+                    <TouchableOpacity
+                      style={[styles.submitCommentButton, submittingComment && styles.submitCommentButtonDisabled]}
+                      onPress={submitComment}
+                      disabled={submittingComment || !newComment.trim()}
+                    >
+                      {submittingComment ? (
+                        <ActivityIndicator color="#FFF" size="small" />
+                      ) : (
+                        <Icon name="send" size={18} color="#FFF" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Comments List */}
+                  {comments.length > 0 ? (
+                    comments.map((comment) => (
+                      <View key={comment.id} style={styles.commentItem}>
+                        <View style={styles.commentHeader}>
+                          <Text style={styles.commentAuthor}>
+                            {comment.profiles?.display_name || comment.profiles?.username || 'User'}
+                          </Text>
+                          <Text style={styles.commentDate}>
+                            {new Date(comment.created_at).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <Text style={styles.commentText}>{comment.comment}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noCommentsText}>No comments yet. Be the first!</Text>
+                  )}
                 </View>
 
                 {/* Delete Button */}
@@ -793,34 +1158,45 @@ export default function ExploreScreen({ route }: any) {
                       Choose an Odyssey-themed icon for your map pin
                     </Text>
                     <View style={styles.iconGrid}>
-                      {['odyssey-1.png', 'odyssey-2.png', 'odyssey-3.png'].map((icon) => (
-                        <TouchableOpacity
-                          key={icon}
-                          style={[
-                            styles.iconOption,
-                            odysseyIcon === icon && styles.iconOptionSelected,
-                          ]}
-                          onPress={() => saveOdysseyIcon(icon)}
-                          disabled={savingIcon}
-                        >
-                          <Image
-                            source={
-                              icon === 'odyssey-1.png'
-                                ? require('../assets/images/odyssey/odyssey-1.png')
-                                : icon === 'odyssey-2.png'
-                                ? require('../assets/images/odyssey/odyssey-2.png')
-                                : require('../assets/images/odyssey/odyssey-3.png')
-                            }
-                            style={styles.iconImage}
-                            resizeMode="cover"
-                          />
-                          {odysseyIcon === icon && (
-                            <View style={styles.iconCheckmark}>
-                              <Icon name="check" size={16} color={theme.colors.offWhite} />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      ))}
+                      {['odyssey-1-circle.png', 'odyssey-2-circle.png', 'odyssey-3-circle.png', 'odyssey-4-circle.png', 'odyssey-5-circle.png', 'odyssey-6-circle.png', 'odyssey-7-circle.png', 'odyssey-8-circle.png', 'odyssey-9-circle.png', 'odyssey-10-circle.png', 'odyssey-11-circle.png', 'odyssey-12-circle.png'].map((icon) => {
+                        const iconMap: {[key: string]: any} = {
+                          'odyssey-1-circle.png': require('../assets/images/odyssey/odyssey-1-circle.png'),
+                          'odyssey-2-circle.png': require('../assets/images/odyssey/odyssey-2-circle.png'),
+                          'odyssey-3-circle.png': require('../assets/images/odyssey/odyssey-3-circle.png'),
+                          'odyssey-4-circle.png': require('../assets/images/odyssey/odyssey-4-circle.png'),
+                          'odyssey-5-circle.png': require('../assets/images/odyssey/odyssey-5-circle.png'),
+                          'odyssey-6-circle.png': require('../assets/images/odyssey/odyssey-6-circle.png'),
+                          'odyssey-7-circle.png': require('../assets/images/odyssey/odyssey-7-circle.png'),
+                          'odyssey-8-circle.png': require('../assets/images/odyssey/odyssey-8-circle.png'),
+                          'odyssey-9-circle.png': require('../assets/images/odyssey/odyssey-9-circle.png'),
+                          'odyssey-10-circle.png': require('../assets/images/odyssey/odyssey-10-circle.png'),
+                          'odyssey-11-circle.png': require('../assets/images/odyssey/odyssey-11-circle.png'),
+                          'odyssey-12-circle.png': require('../assets/images/odyssey/odyssey-12-circle.png'),
+                        };
+
+                        return (
+                          <TouchableOpacity
+                            key={icon}
+                            style={[
+                              styles.iconOption,
+                              odysseyIcon === icon && styles.iconOptionSelected,
+                            ]}
+                            onPress={() => saveOdysseyIcon(icon)}
+                            disabled={savingIcon}
+                          >
+                            <Image
+                              source={iconMap[icon]}
+                              style={styles.iconImage}
+                              resizeMode="contain"
+                            />
+                            {odysseyIcon === icon && (
+                              <View style={styles.iconCheckmark}>
+                                <Icon name="check" size={16} color={theme.colors.offWhite} />
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
 
@@ -864,7 +1240,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.fontSize.xxl,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: 'Crimson Pro',
     fontWeight: '600',
     color: theme.colors.midnightBlue,
   },
@@ -888,6 +1264,22 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontFamily: theme.fonts.sans.regular,
     color: theme.colors.midnightBlue,
+  },
+  helpBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    backgroundColor: theme.colors.aquaMist,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.seaMist,
+    gap: theme.spacing.sm,
+  },
+  helpText: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fonts.sans.regular,
+    color: theme.colors.oceanGrey,
   },
   map: {
     flex: 1,
@@ -913,7 +1305,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: theme.fontSize.xl,
-    fontFamily: theme.fonts.display.regular,
+    fontFamily: 'Crimson Pro',
     fontWeight: '600',
     color: theme.colors.midnightBlue,
   },
@@ -1037,6 +1429,101 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: theme.spacing.sm,
     paddingLeft: 26,
+  },
+  visitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.success || '#10B981',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 14,
+    marginTop: theme.spacing.lg,
+  },
+  visitButtonText: {
+    color: '#FFF',
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+  commentsSection: {
+    marginTop: theme.spacing.xxl,
+    paddingTop: theme.spacing.lg,
+    borderTopWidth: 2,
+    borderTopColor: theme.colors.seaMist,
+  },
+  commentsSectionTitle: {
+    fontSize: theme.fontSize.lg,
+    fontFamily: theme.fonts.display.regular,
+    color: theme.colors.midnightBlue,
+    marginBottom: theme.spacing.md,
+    fontWeight: '600',
+  },
+  addCommentContainer: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontFamily: theme.fonts.sans.regular,
+    fontSize: theme.fontSize.md,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  submitCommentButton: {
+    backgroundColor: theme.colors.midnightBlue,
+    borderRadius: theme.borderRadius.md,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitCommentButtonDisabled: {
+    opacity: 0.5,
+  },
+  commentItem: {
+    backgroundColor: '#FFF',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  commentAuthor: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fonts.sans.regular,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+  },
+  commentDate: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fonts.sans.regular,
+    color: theme.colors.oceanGrey,
+  },
+  commentText: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fonts.sans.regular,
+    color: theme.colors.earthBrown,
+  },
+  noCommentsText: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fonts.sans.regular,
+    color: theme.colors.oceanGrey,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: theme.spacing.lg,
   },
   deleteButtonLarge: {
     flexDirection: 'row',
@@ -1235,7 +1722,7 @@ const styles = StyleSheet.create({
   },
   friendsSelectorTitle: {
     fontSize: theme.fontSize.lg,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.md,
@@ -1285,7 +1772,7 @@ const styles = StyleSheet.create({
   },
   iconPickerTitle: {
     fontSize: theme.fontSize.lg,
-    fontFamily: theme.fonts.serif.regular,
+    fontFamily: 'Crimson Pro',
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.sm,
@@ -1298,29 +1785,28 @@ const styles = StyleSheet.create({
   },
   iconGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.md,
     justifyContent: 'center',
   },
   iconOption: {
-    width: 90,
-    height: 90,
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 3,
-    borderColor: theme.colors.seaMist,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: 'transparent',
   },
   iconOptionSelected: {
-    borderColor: theme.colors.deepTeal,
-    borderWidth: 4,
     shadowColor: theme.colors.oceanDepth,
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+    transform: [{ scale: 1.1 }],
   },
   iconImage: {
     width: '100%',
@@ -1332,8 +1818,63 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(61, 85, 104, 0.3)',
+    backgroundColor: 'rgba(61, 85, 104, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 40,
+  },
+  photoSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  addPhotoButton: {
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+    borderStyle: 'dashed',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.cream,
+  },
+  addPhotoText: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.oceanGrey,
+    fontFamily: theme.fonts.sans.regular,
+  },
+  photoPreviewContainer: {
+    position: 'relative',
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+  },
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    backgroundColor: theme.colors.cream,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placePhotoContainer: {
+    marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: theme.colors.seaMist,
+  },
+  placePhotoLarge: {
+    width: '100%',
+    height: 250,
+    backgroundColor: theme.colors.cream,
   },
 });
