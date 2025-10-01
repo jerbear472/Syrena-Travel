@@ -63,6 +63,9 @@ export default function ExploreScreen() {
   const [placeDetails, setPlaceDetails] = useState<any>(null);
   const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
   const [priceLevel, setPriceLevel] = useState(0);
+  const [showFriendsSelector, setShowFriendsSelector] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
 
   useEffect(() => {
     getCurrentLocation();
@@ -83,8 +86,39 @@ export default function ExploreScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      if (user) {
+        loadFriends(user.id);
+      }
     } catch (error: any) {
       console.error('Error getting user:', error.message || String(error));
+    }
+  };
+
+  const loadFriends = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('friendships')
+        .select('*, friend:profiles!friendships_friend_id_fkey(id, email)')
+        .eq('user_id', userId)
+        .eq('status', 'accepted');
+
+      if (error) throw error;
+      setFriends(data || []);
+    } catch (error: any) {
+      console.error('Error loading friends:', error.message || String(error));
+    }
+  };
+
+  const recenterToCurrentLocation = () => {
+    if (userLocation) {
+      mapRef.current?.animateToRegion({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 1000);
+    } else {
+      getCurrentLocation();
     }
   };
 
@@ -369,6 +403,78 @@ export default function ExploreScreen() {
           />
         ))}
       </MapView>
+
+      {/* Floating Action Buttons */}
+      <View style={styles.floatingButtons}>
+        {/* Friends Filter Button */}
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={() => setShowFriendsSelector(!showFriendsSelector)}
+        >
+          <Icon name="people" size={24} color={theme.colors.offWhite} />
+          {selectedFriendFilter && <View style={styles.filterActiveDot} />}
+        </TouchableOpacity>
+
+        {/* Current Location Button */}
+        <TouchableOpacity
+          style={[styles.floatingButton, styles.locationButton]}
+          onPress={recenterToCurrentLocation}
+        >
+          <Icon name="my-location" size={24} color={theme.colors.offWhite} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Friends Selector Modal */}
+      {showFriendsSelector && (
+        <View style={styles.friendsSelectorContainer}>
+          <View style={styles.friendsSelectorContent}>
+            <Text style={styles.friendsSelectorTitle}>View Friend's Places</Text>
+            <ScrollView style={styles.friendsList}>
+              <TouchableOpacity
+                style={[
+                  styles.friendItem,
+                  !selectedFriendFilter && styles.friendItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedFriendFilter(null);
+                  setShowFriendsSelector(false);
+                  loadPlaces();
+                }}
+              >
+                <Icon name="public" size={20} color={theme.colors.midnightBlue} />
+                <Text style={styles.friendName}>All Places</Text>
+                {!selectedFriendFilter && (
+                  <Icon name="check" size={20} color={theme.colors.deepTeal} />
+                )}
+              </TouchableOpacity>
+              {friends.map((friendship) => (
+                <TouchableOpacity
+                  key={friendship.friend_id}
+                  style={[
+                    styles.friendItem,
+                    selectedFriendFilter === friendship.friend_id && styles.friendItemActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedFriendFilter(friendship.friend_id);
+                    setShowFriendsSelector(false);
+                    // Filter places by friend
+                  }}
+                >
+                  <View style={styles.friendAvatar}>
+                    <Text style={styles.friendAvatarText}>
+                      {friendship.friend?.email?.[0]?.toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.friendName}>{friendship.friend?.email}</Text>
+                  {selectedFriendFilter === friendship.friend_id && (
+                    <Icon name="check" size={20} color={theme.colors.deepTeal} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
 
       <Modal
         visible={showAddModal}
@@ -658,6 +764,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.fontSize.xxl,
+    fontFamily: theme.fonts.display.regular,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
   },
@@ -679,6 +786,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: theme.fontSize.md,
+    fontFamily: theme.fonts.sans.regular,
     color: theme.colors.midnightBlue,
   },
   map: {
@@ -705,11 +813,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: theme.fontSize.xl,
+    fontFamily: theme.fonts.display.regular,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
   },
   label: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fonts.sans.regular,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.sm,
@@ -721,6 +831,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     fontSize: theme.fontSize.md,
+    fontFamily: theme.fonts.sans.regular,
     marginBottom: theme.spacing.lg,
     borderWidth: 2,
     borderColor: theme.colors.seaMist,
@@ -753,6 +864,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: theme.fontSize.xs,
+    fontFamily: theme.fonts.sans.regular,
     color: theme.colors.oceanGrey,
     fontWeight: '500',
   },
@@ -778,6 +890,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: theme.colors.cream,
     fontSize: theme.fontSize.md,
+    fontFamily: theme.fonts.sans.regular,
     fontWeight: '600',
   },
   detailsIconContainer: {
@@ -962,5 +1075,105 @@ const styles = StyleSheet.create({
   },
   dollarSignActive: {
     color: theme.colors.sirenGold,
+  },
+  floatingButtons: {
+    position: 'absolute',
+    right: theme.spacing.xl,
+    bottom: theme.spacing.xxxl + 80,
+    gap: theme.spacing.md,
+  },
+  floatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.deepTeal,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: theme.colors.oceanDepth,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  locationButton: {
+    backgroundColor: theme.colors.midnightBlue,
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.sirenGold,
+    borderWidth: 2,
+    borderColor: theme.colors.offWhite,
+  },
+  friendsSelectorContainer: {
+    position: 'absolute',
+    right: theme.spacing.xl + 70,
+    bottom: theme.spacing.xxxl + 80,
+    width: 280,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  friendsSelectorContent: {
+    backgroundColor: theme.colors.offWhite,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    maxHeight: 350,
+    shadowColor: theme.colors.oceanDepth,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  friendsSelectorTitle: {
+    fontSize: theme.fontSize.lg,
+    fontFamily: theme.fonts.serif.regular,
+    fontWeight: '600',
+    color: theme.colors.midnightBlue,
+    marginBottom: theme.spacing.md,
+  },
+  friendsList: {
+    maxHeight: 280,
+  },
+  friendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.md,
+    backgroundColor: theme.colors.cream,
+  },
+  friendItemActive: {
+    backgroundColor: theme.colors.seaMist,
+    borderWidth: 2,
+    borderColor: theme.colors.deepTeal,
+  },
+  friendAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.midnightBlue,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendAvatarText: {
+    color: theme.colors.offWhite,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+  },
+  friendName: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    fontFamily: theme.fonts.sans.regular,
+    color: theme.colors.midnightBlue,
   },
 });

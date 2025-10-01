@@ -49,6 +49,7 @@ export default function HomePage() {
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | null>(null);
   const [showCoordinatesModal, setShowCoordinatesModal] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapKey, setMapKey] = useState(0);
 
   const supabase = createClient();
 
@@ -393,6 +394,7 @@ export default function HomePage() {
             {/* Map Container */}
             <div className="flex-1 relative bg-sea-mist/20">
               <MapView
+                key={mapKey}
                 isAuthenticated={isAuthenticated}
                 center={mapCenter}
                 onMapLoad={() => setMapLoaded(true)}
@@ -450,6 +452,7 @@ export default function HomePage() {
         {activeTab === 'profile' && <ProfileSettings onBack={() => {
           setActiveTab('explore');
           loadUserProfile(user?.id);
+          setMapKey(prev => prev + 1); // Force map to reload with new icon
         }} />}
       </main>
 

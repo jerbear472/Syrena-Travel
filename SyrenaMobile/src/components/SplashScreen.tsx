@@ -122,6 +122,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 48,
+    fontFamily: theme.fonts.display.regular,
     fontWeight: '300',
     color: theme.colors.midnightBlue,
     marginBottom: 8,
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: theme.fonts.serif.italic,
     color: theme.colors.oceanGrey,
     fontStyle: 'italic',
   },

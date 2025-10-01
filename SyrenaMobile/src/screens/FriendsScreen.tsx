@@ -386,6 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.lg,
+    fontFamily: theme.fonts.display.regular,
   },
   tabs: {
     flexDirection: 'row',
@@ -407,9 +408,11 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     fontWeight: '500',
+    fontFamily: theme.fonts.sans.regular,
   },
   activeTabText: {
     color: theme.colors.cream,
+    fontFamily: theme.fonts.sans.regular,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -425,6 +428,7 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.md,
     fontSize: theme.fontSize.md,
     color: theme.colors.midnightBlue,
+    fontFamily: theme.fonts.sans.regular,
   },
   listContent: {
     padding: theme.spacing.xl,
@@ -457,6 +461,7 @@ const styles = StyleSheet.create({
     color: theme.colors.cream,
     fontWeight: '600',
     fontSize: theme.fontSize.md,
+    fontFamily: theme.fonts.sans.regular,
   },
   userInfo: {
     flex: 1,
@@ -466,11 +471,13 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
+    fontFamily: theme.fonts.sans.regular,
   },
   userUsername: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     marginTop: 2,
+    fontFamily: theme.fonts.sans.regular,
   },
   requestActions: {
     flexDirection: 'row',
@@ -506,12 +513,14 @@ const styles = StyleSheet.create({
     color: theme.colors.cream,
     fontSize: theme.fontSize.sm,
     fontWeight: '500',
+    fontFamily: theme.fonts.sans.regular,
   },
   emptyText: {
     textAlign: 'center',
     color: theme.colors.oceanGrey,
     fontSize: theme.fontSize.md,
     marginTop: 40,
+    fontFamily: theme.fonts.sans.regular,
   },
   loadingContainer: {
     flex: 1,
@@ -523,6 +532,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.md,
+    fontFamily: theme.fonts.serif.regular,
   },
   pendingBadge: {
     flexDirection: 'row',
@@ -539,5 +549,6 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.oceanGrey,
     fontWeight: '500',
+    fontFamily: theme.fonts.sans.regular,
   },
 });

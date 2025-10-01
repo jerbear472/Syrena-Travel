@@ -274,11 +274,13 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xxl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
+    fontFamily: theme.fonts.display.regular,
   },
   subtitle: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     marginTop: 4,
+    fontFamily: theme.fonts.sans.regular,
   },
   listContent: {
     paddingHorizontal: theme.spacing.xl,
@@ -315,15 +317,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: 4,
+    fontFamily: theme.fonts.serif.regular,
   },
   placeNotes: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     marginBottom: 4,
+    fontFamily: theme.fonts.sans.regular,
   },
   placeDate: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.driftwood,
+    fontFamily: theme.fonts.sans.regular,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -342,6 +347,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     fontSize: theme.fontSize.md,
     color: theme.colors.oceanGrey,
+    fontFamily: theme.fonts.sans.regular,
   },
   emptyContainer: {
     flex: 1,
@@ -355,11 +361,13 @@ const styles = StyleSheet.create({
     color: theme.colors.midnightBlue,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
+    fontFamily: theme.fonts.serif.regular,
   },
   emptySubtitle: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     textAlign: 'center',
+    fontFamily: theme.fonts.sans.regular,
   },
   profileButton: {
     padding: 4,
@@ -379,6 +387,7 @@ const styles = StyleSheet.create({
     color: theme.colors.cream,
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
+    fontFamily: theme.fonts.sans.regular,
   },
   statusDot: {
     position: 'absolute',
@@ -414,6 +423,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
+    fontFamily: theme.fonts.serif.regular,
   },
   profileContent: {
     alignItems: 'center',
@@ -434,18 +444,21 @@ const styles = StyleSheet.create({
     color: theme.colors.cream,
     fontSize: theme.fontSize.xxl,
     fontWeight: '600',
+    fontFamily: theme.fonts.sans.regular,
   },
   profileName: {
     fontSize: theme.fontSize.xl,
     fontWeight: '600',
     color: theme.colors.midnightBlue,
     marginBottom: theme.spacing.xs,
+    fontFamily: theme.fonts.serif.regular,
   },
   profileEmail: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.oceanGrey,
     fontStyle: 'italic',
     marginBottom: theme.spacing.xxl,
+    fontFamily: theme.fonts.sans.regular,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -462,5 +475,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: theme.fontSize.md,
     fontWeight: '600',
+    fontFamily: theme.fonts.sans.regular,
   },
 });
