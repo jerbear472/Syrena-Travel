@@ -622,21 +622,22 @@ export default function ExploreScreen() {
             </View>
 
             {selectedPlace && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Category Icon */}
-                <View style={styles.detailsIconContainer}>
-                  <Icon
-                    name={getCategoryIcon(selectedPlace.category || 'other')}
-                    size={48}
-                    color={theme.colors.midnightBlue}
-                  />
-                </View>
+              <View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Category Icon */}
+                  <View style={styles.detailsIconContainer}>
+                    <Icon
+                      name={getCategoryIcon(selectedPlace.category || 'other')}
+                      size={48}
+                      color={theme.colors.midnightBlue}
+                    />
+                  </View>
 
-                {/* Place Name */}
-                <Text style={styles.detailsTitle}>{selectedPlace.name}</Text>
+                  {/* Place Name */}
+                  <Text style={styles.detailsTitle}>{selectedPlace.name}</Text>
 
-                {/* Category */}
-                <View style={styles.detailsRow}>
+                  {/* Category */}
+                  <View style={styles.detailsRow}>
                   <Icon name="category" size={18} color={theme.colors.oceanGrey} />
                   <Text style={styles.detailsLabel}>Category:</Text>
                   <Text style={styles.detailsValue}>
@@ -693,6 +694,7 @@ export default function ExploreScreen() {
                   <Text style={styles.deleteButtonText}>Delete Place</Text>
                 </TouchableOpacity>
               </ScrollView>
+            </View>
             )}
           </View>
         </View>

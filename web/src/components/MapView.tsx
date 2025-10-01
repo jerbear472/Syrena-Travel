@@ -379,7 +379,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   }, []);
 
   const loadAllPlaces = async () => {
-    console.log('Loading all places...');
+    console.log('Loading all places... (MapView mounted/reloaded)');
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -437,6 +437,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         }
 
         console.log('Loaded friends places:', data?.length || 0);
+        console.log('First friend place with profile:', data?.[0]);
 
         if (data) {
           setSavedPlaces(data);
@@ -465,6 +466,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         }
 
         console.log('Loaded my places:', data?.length || 0);
+        console.log('First my place with profile:', data?.[0]);
 
         if (data) {
           setSavedPlaces(data);
@@ -497,9 +499,11 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
     places.forEach(place => {
       console.log('Creating marker for place:', place.name, 'at', place.lat, place.lng);
+      console.log('Place data:', JSON.stringify(place, null, 2));
 
       // Get the odyssey icon from the place's creator profile
       const odysseyIcon = place.profiles?.odyssey_icon;
+      console.log('Odyssey icon for', place.name, ':', odysseyIcon);
 
       let iconConfig;
       if (odysseyIcon) {
