@@ -93,10 +93,11 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Try searching by username and display_name only (email might not be in profiles table)
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
+      .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
       .neq('id', user.id)
       .limit(50);
 
@@ -383,7 +384,7 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="text"
-                      placeholder="Search by username, name, or email..."
+                      placeholder="Search by username or name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && searchUsers()}
