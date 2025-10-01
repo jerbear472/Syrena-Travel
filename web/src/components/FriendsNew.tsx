@@ -89,11 +89,19 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
       return;
     }
 
+    console.log('Starting search for:', searchQuery);
     setSearchError('');
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    console.log('Current user:', user?.id);
+
+    if (!user) {
+      console.log('No user logged in');
+      return;
+    }
 
     // Try searching by username and display_name only (email might not be in profiles table)
+    console.log('Executing query...');
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -101,10 +109,16 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
       .neq('id', user.id)
       .limit(50);
 
+    console.log('Query result:', { data, error });
+
     if (error) {
       console.error('Search error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      setSearchError('Unable to search users. Database permissions may need to be configured. Please contact support.');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
+      console.error('Full error:', JSON.stringify(error, null, 2));
+      setSearchError(`Database error: ${error.message || 'Unknown error'}. Check console for details.`);
       setSearchResults([]);
       return;
     }

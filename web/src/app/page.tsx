@@ -12,6 +12,7 @@ import AuthModal from '@/components/AuthModal';
 import SearchBar from '@/components/SearchBar';
 import AddByCoordinatesModal from '@/components/AddByCoordinatesModal';
 import LyreIcon from '@/components/LyreIcon';
+import NotificationBell from '@/components/NotificationBell';
 import Image from 'next/image';
 
 // Dynamic imports
@@ -229,6 +230,9 @@ export default function HomePage() {
                   </p>
                   <p className="text-xs text-ocean-grey font-sans truncate italic">{user?.email}</p>
                 </div>
+              )}
+              {isSidebarOpen && (
+                <NotificationBell onNavigateToFriends={() => setActiveTab('friends')} />
               )}
             </div>
           ) : (
