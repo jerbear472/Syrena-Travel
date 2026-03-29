@@ -143,12 +143,12 @@ THE "WHY" FIELD:
 - Not "Great atmosphere and food" but "Because the carbonara here made me briefly reconsider every life choice that led me away from Rome"
 
 RECOMMENDATIONS:
-- 8-10 specific, real places with their actual names and addresses
+- 5-6 specific, real places with their actual names and addresses (quality over quantity)
 - A category for each: restaurant, cafe, bar, hotel, viewpoint, nature, shopping, museum, hidden-gem
 - Approximate coordinates (lat/lng) for each place
 - Match the places to the user's ACTUAL request. If they want bars, give them bars. If they want a date itinerary, build an evening.
 
-CRITICAL: Only recommend places you are confident actually exist RIGHT NOW. Use their real, full, official name (the name you'd see on Google Maps). If you're not 95% sure a place exists, don't include it — we verify every recommendation against Google Places, and fake ones get dropped. Better to recommend 6 real places than 10 with 4 hallucinated ones.
+CRITICAL: Only recommend places you are confident actually exist RIGHT NOW. Use their real, full, official name (the name you'd see on Google Maps). If you're not 95% sure a place exists, don't include it — we verify every recommendation against Google Places, and fake ones get dropped. Better to recommend 4 real places than 6 with 2 hallucinated ones.
 
 Respond in JSON format:
 {
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
 
     const message = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
-      max_tokens: 2000,
+      max_tokens: 1500,
       system: SYRENA_SYSTEM_PROMPT,
       messages: [
         { role: 'user', content: userMessage }

@@ -255,6 +255,10 @@ export default function SourceOfJourneyScreen() {
     try {
       const friendPlaces = await fetchFriendsPlaces();
 
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+
       const response = await fetch(`${WEB_API_URL}/api/source-of-journey`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -263,7 +267,10 @@ export default function SourceOfJourneyScreen() {
           friendPlaces,
           ...(userLocation && { lat: userLocation.latitude, lng: userLocation.longitude }),
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errData = await response.json();
@@ -277,7 +284,11 @@ export default function SourceOfJourneyScreen() {
         scrollRef.current?.scrollTo({ y: 0, animated: true });
       }, 100);
     } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Please try a shorter query or try again.');
+      } else {
+        setError(err.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/source-of-journey/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/onboarding-places/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
