@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
     const userMessage = `"${query}"${locationContext}${friendContext}\n\nGive me your best. JSON format only, real places only. Read the vibe of what I'm asking for and match it perfectly.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       system: SYRENA_SYSTEM_PROMPT,
       messages: [

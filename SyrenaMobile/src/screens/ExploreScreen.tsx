@@ -416,35 +416,33 @@ export default function ExploreScreen({ route, navigation }: any) {
   };
 
   const getCurrentLocation = () => {
-    // Set default location immediately to prevent UI freeze
+    // Set default location IMMEDIATELY to ensure UI never freezes
     const defaultLocation = { latitude: 37.78825, longitude: -122.4324 };
 
-    // Set a quick fallback timeout in case geolocation hangs
-    const fallbackTimer = setTimeout(() => {
-      if (!userLocation) {
-        console.log('[Location] Fallback timeout - using default');
-        setUserLocation(defaultLocation);
-      }
-    }, 3000); // 3 second fallback
+    // Always set default first - this ensures the app is never unresponsive
+    setUserLocation(defaultLocation);
 
+    // Then try to get real location in background (non-blocking)
+    // Use a very short timeout to avoid hanging when permission is denied
     try {
       Geolocation.getCurrentPosition(
         (position) => {
-          clearTimeout(fallbackTimer);
           const { latitude, longitude } = position.coords;
-          setUserLocation({ latitude, longitude });
+          // Only update if we got valid coordinates
+          if (latitude && longitude) {
+            setUserLocation({ latitude, longitude });
+            console.log('[Location] Got user location');
+          }
         },
         (error) => {
-          clearTimeout(fallbackTimer);
-          console.log('[Location] Error:', error.message);
-          setUserLocation(defaultLocation);
+          // Silently ignore - we already set the default
+          console.log('[Location] Using default (permission denied or error):', error.message);
         },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        { enableHighAccuracy: false, timeout: 3000, maximumAge: 60000 }
       );
     } catch (error) {
-      clearTimeout(fallbackTimer);
-      console.log('[Location] Exception:', error);
-      setUserLocation(defaultLocation);
+      // Silently ignore - we already set the default
+      console.log('[Location] Exception (using default):', error);
     }
   };
 

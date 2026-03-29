@@ -107,19 +107,25 @@ export default function SourceOfJourneyScreen() {
 
   // Get user location and search history on mount
   useEffect(() => {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      () => {}, // silently fail — location is optional context
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 },
-    );
-
-    // Load search history
+    // Load search history immediately (non-blocking)
     loadSearchHistory();
+
+    // Try to get location in background with short timeout
+    // Location is optional - don't block the UI
+    try {
+      Geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        () => {}, // silently fail — location is optional context
+        { enableHighAccuracy: false, timeout: 2000, maximumAge: 60000 },
+      );
+    } catch {
+      // Silently ignore - location is optional
+    }
   }, []);
 
   const loadSearchHistory = async () => {

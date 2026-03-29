@@ -35,9 +35,9 @@ export const API_CONFIG = {
   timeout: 5000,
 };
 
-// Base URL for Next.js web API (port 3000)
+// Base URL for Next.js web API (port 3001 in dev)
 export const WEB_API_URL = isDev
-  ? `http://${devHost}:3000`
+  ? `http://${devHost}:3001`
   : 'https://syrena-web-new.vercel.app';
 
 // Helper to build full URL

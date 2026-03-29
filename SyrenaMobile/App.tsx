@@ -305,16 +305,46 @@ function App(): React.JSX.Element {
     };
 
     const triggerOnboarding = () => {
-      Geolocation.getCurrentPosition(
-        (position) => {
-          runOnboarding({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-        },
-        () => {
-          // Fallback to San Francisco
-          runOnboarding({ latitude: 37.78825, longitude: -122.4324 });
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 },
-      );
+      // Use default location immediately, then try to get real location
+      const defaultLocation = { latitude: 37.78825, longitude: -122.4324 };
+
+      // Start onboarding with default location first (non-blocking)
+      // This ensures onboarding runs even if location permission is denied
+      let onboardingStarted = false;
+
+      // Set a short timeout to ensure we don't wait too long for location
+      const fallbackTimer = setTimeout(() => {
+        if (!onboardingStarted) {
+          onboardingStarted = true;
+          runOnboarding(defaultLocation);
+        }
+      }, 2000);
+
+      try {
+        Geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(fallbackTimer);
+            if (!onboardingStarted) {
+              onboardingStarted = true;
+              runOnboarding({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+            }
+          },
+          () => {
+            clearTimeout(fallbackTimer);
+            if (!onboardingStarted) {
+              onboardingStarted = true;
+              runOnboarding(defaultLocation);
+            }
+          },
+          { enableHighAccuracy: false, timeout: 2000, maximumAge: 60000 },
+        );
+      } catch {
+        clearTimeout(fallbackTimer);
+        if (!onboardingStarted) {
+          onboardingStarted = true;
+          runOnboarding(defaultLocation);
+        }
+      }
     };
 
     // Defer to let the map and profile trigger settle
