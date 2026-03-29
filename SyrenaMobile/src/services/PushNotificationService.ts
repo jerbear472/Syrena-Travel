@@ -23,22 +23,34 @@ class PushNotificationService {
       return null;
     }
 
-    // Check/request permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('[Push] Permission not granted');
-      return null;
-    }
-
-    // Get Expo push token
     try {
+      // Check/request permissions with timeout
+      const permissionPromise = Notifications.getPermissionsAsync();
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => {
+          console.log('[Push] Permission check timed out');
+          resolve(null);
+        }, 5000)
+      );
+
+      const permResult = await Promise.race([permissionPromise, timeoutPromise]);
+      if (!permResult) return null;
+
+      let finalStatus = permResult.status;
+
+      if (finalStatus !== 'granted') {
+        const requestPromise = Notifications.requestPermissionsAsync();
+        const requestResult = await Promise.race([requestPromise, timeoutPromise]);
+        if (!requestResult) return null;
+        finalStatus = requestResult.status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.log('[Push] Permission not granted');
+        return null;
+      }
+
+      // Get Expo push token
       const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 
       const tokenData = await Notifications.getExpoPushTokenAsync({

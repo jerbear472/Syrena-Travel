@@ -52,9 +52,13 @@ export async function runOnboardingIfNeeded(
       console.log('[Onboarding] City resolution failed, using coordinates only');
     }
 
-    // 3. Call the onboarding-places API
+    // 3. Call the onboarding-places API with timeout
     console.log(`[Onboarding] Calling API: ${WEB_API_URL}/api/onboarding-places (city: ${city || 'your area'})`);
     callbacks?.onProgress?.('Curating your personal guide...');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     const response = await fetch(`${WEB_API_URL}/api/onboarding-places`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,7 +67,9 @@ export async function runOnboardingIfNeeded(
         lng: location.longitude,
         city: city || 'your area',
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: 'Unknown error' }));

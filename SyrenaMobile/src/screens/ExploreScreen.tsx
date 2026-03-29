@@ -13,8 +13,6 @@ import {
   Dimensions,
   Animated,
   Linking,
-  Easing,
-  InteractionManager,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import LinearGradient from 'react-native-linear-gradient';
@@ -202,15 +200,24 @@ export default function ExploreScreen({ route, navigation }: any) {
   // Edit place state
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
 
-  // Initialize - defer heavy operations until after render
+  // Initialize - run immediately but non-blocking
   useEffect(() => {
-    // Use InteractionManager to wait for animations/transitions to complete
-    const task = InteractionManager.runAfterInteractions(() => {
-      getCurrentLocation();
-      getUser();
-    });
+    // Set default location immediately to ensure UI renders
+    setUserLocation({ latitude: 37.78825, longitude: -122.4324 });
 
-    return () => task.cancel();
+    // Run init tasks in background - don't wait
+    const initApp = async () => {
+      try {
+        getUser();
+        getCurrentLocation();
+      } catch (e) {
+        console.log('[ExploreScreen] Init error (non-fatal):', e);
+      }
+    };
+
+    // Small delay to let the UI render first
+    const timer = setTimeout(initApp, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   // Subtle chevron micro-motion for map card
@@ -335,14 +342,22 @@ export default function ExploreScreen({ route, navigation }: any) {
 
   const getUser = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        loadFriends(user.id);
-        loadUserProfile(user.id);
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('getUser timeout')), 5000)
+      );
+
+      const userPromise = supabase.auth.getUser();
+      const result = await Promise.race([userPromise, timeoutPromise]);
+
+      if (result && 'data' in result && result.data?.user) {
+        setUser(result.data.user);
+        // Run these in background, don't await
+        loadFriends(result.data.user.id).catch(e => console.log('[ExploreScreen] loadFriends error:', e));
+        loadUserProfile(result.data.user.id).catch(e => console.log('[ExploreScreen] loadUserProfile error:', e));
       }
     } catch (error: any) {
-      console.error('Error getting user:', error?.message || 'Unknown error');
+      console.log('[ExploreScreen] getUser error (non-fatal):', error?.message || 'Unknown error');
     }
   };
 
@@ -460,9 +475,18 @@ export default function ExploreScreen({ route, navigation }: any) {
   };
 
   const loadPlaces = async () => {
+    // Add a master timeout to prevent indefinite hanging
+    const loadTimeout = setTimeout(() => {
+      console.log('[ExploreScreen] loadPlaces timeout - continuing anyway');
+      setLoading(false);
+    }, 10000);
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        clearTimeout(loadTimeout);
+        return;
+      }
 
       // Always get ALL user IDs (user + all friends) for the landing page
       const allUserIds: string[] = [user.id];
@@ -557,7 +581,9 @@ export default function ExploreScreen({ route, navigation }: any) {
 
       // DISABLED: City fetching on load was causing excessive API charges ($1500+)
       // Cities are now set when places are CREATED (see savePlace below)
+      clearTimeout(loadTimeout);
     } catch (error: any) {
+      clearTimeout(loadTimeout);
       console.error('Error loading places:', error?.message || 'Unknown error');
     }
   };
