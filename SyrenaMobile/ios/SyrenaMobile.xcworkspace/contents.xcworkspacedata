@@ -7,4 +7,46 @@
    <FileRef
       location = "group:Pods/Pods.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:PERFORMANCE_UX_IMPROVEMENTS.md">
+   </FileRef>
+   <FileRef
+      location = "group:DESIGN_ANALYSIS_RECOMMENDATIONS.md">
+   </FileRef>
+   <FileRef
+      location = "group:DesignSystem.swift">
+   </FileRef>
+   <FileRef
+      location = "group:ProfileBioEditorView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:ProfileView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:SyrenaMainAppView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:SyrenaPrimary.colorset">
+   </FileRef>
+   <FileRef
+      location = "group:SyrenaSecondary.colorset">
+   </FileRef>
+   <FileRef
+      location = "group:SyrenaAccent.colorset">
+   </FileRef>
+   <FileRef
+      location = "group:DESIGN_IMPLEMENTATION_GUIDE.md">
+   </FileRef>
+   <FileRef
+      location = "group:TRANSFORMATION_SUMMARY.md">
+   </FileRef>
+   <FileRef
+      location = "group:BioEditor.js">
+   </FileRef>
+   <FileRef
+      location = "group:BIO_EDITOR_FIX.md">
+   </FileRef>
+   <FileRef
+      location = "group:ENGAGEMENT_IDEAS.md">
+   </FileRef>
 </Workspace>

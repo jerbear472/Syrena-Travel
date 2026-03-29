@@ -1,25 +1,42 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Modal,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  Share,
   ScrollView,
-  ActivityIndicator,
   Image,
+  ActivityIndicator,
+  Dimensions,
+  Animated,
+  Linking,
+  Easing,
+  InteractionManager,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import LinearGradient from 'react-native-linear-gradient';
 import Geolocation from '@react-native-community/geolocation';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons as Icon, MaterialCommunityIcons } from '@expo/vector-icons';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { supabase } from '../lib/supabase';
 import theme from '../theme';
+import { getApiUrl, API_CONFIG } from '../config/api';
+import { cleanCityName, getCityFromCoordinates } from '../utils/location';
+import {
+  PlaceMarker,
+  FriendsSelectorModal,
+  ProfileModal,
+  AddPlaceModal,
+  PlaceDetailsModal,
+} from '../components/explore';
+import { PressableScale } from '../components/ui/AnimatedComponents';
+import { runOnboardingIfNeeded } from '../services/OnboardingService';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface Place {
   id: string;
@@ -28,97 +45,293 @@ interface Place {
   lng: number;
   description?: string;
   category?: string;
-  created_by: string;
+  user_id: string;
   photo_url?: string;
-  odyssey_icon?: string;
   visit_count?: number;
+  price_level?: number;
+  odyssey_icon?: string;
+  created_at?: string;
+  city?: string;
+  source?: string;
+}
+
+interface PlaceDetails {
+  name?: string;
+  address?: string;
+  photos?: string[];
+  priceLevel?: number;
+  types?: string[];
+  error?: boolean;
+  city?: string;
+  placeId?: string;
+}
+
+interface NearbyAlternative {
+  placeId: string;
+  name: string;
+  address: string;
+  types: string[];
+}
+
+interface PlaceOwner {
+  id: string;
+  username?: string;
+  display_name?: string;
+}
+
+interface Comment {
+  id: string;
+  comment: string;
+  created_at: string;
+  profiles?: {
+    username?: string;
+    display_name?: string;
+  };
+}
+
+interface SearchResult {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
 }
 
 const categories = [
   { id: 'restaurant', name: 'Restaurant', icon: 'restaurant' },
-  { id: 'cafe', name: 'Café', icon: 'local-cafe' },
+  { id: 'cafe', name: 'Cafe', icon: 'local-cafe' },
+  { id: 'bar', name: 'Bar', icon: 'local-bar' },
+  { id: 'hotel', name: 'Hotel', icon: 'hotel' },
   { id: 'viewpoint', name: 'Viewpoint', icon: 'photo-camera' },
   { id: 'nature', name: 'Nature', icon: 'park' },
   { id: 'shopping', name: 'Shopping', icon: 'shopping-bag' },
-  { id: 'hotel', name: 'Hotel', icon: 'hotel' },
-  { id: 'museum', name: 'Museum', icon: 'account-balance' },
-  { id: 'hidden-gem', name: 'Hidden Gem', icon: 'stars' },
-  { id: 'people-watching', name: 'People Watching', icon: 'people' },
-  { id: 'other', name: 'Other', icon: 'more-horiz' },
+  { id: 'museum', name: 'Museum', icon: 'museum' },
+  { id: 'hidden-gem', name: 'Hidden Gem', icon: 'star' },
 ];
 
-const odysseyIconMap: {[key: string]: any} = {
-  'odyssey-1-circle.png': require('../assets/images/odyssey/odyssey-1-circle.png'),
-  'odyssey-2-circle.png': require('../assets/images/odyssey/odyssey-2-circle.png'),
-  'odyssey-3-circle.png': require('../assets/images/odyssey/odyssey-3-circle.png'),
-  'odyssey-4-circle.png': require('../assets/images/odyssey/odyssey-4-circle.png'),
-  'odyssey-5-circle.png': require('../assets/images/odyssey/odyssey-5-circle.png'),
-  'odyssey-6-circle.png': require('../assets/images/odyssey/odyssey-6-circle.png'),
-  'odyssey-7-circle.png': require('../assets/images/odyssey/odyssey-7-circle.png'),
-  'odyssey-8-circle.png': require('../assets/images/odyssey/odyssey-8-circle.png'),
-  'odyssey-9-circle.png': require('../assets/images/odyssey/odyssey-9-circle.png'),
-  'odyssey-10-circle.png': require('../assets/images/odyssey/odyssey-10-circle.png'),
-  'odyssey-11-circle.png': require('../assets/images/odyssey/odyssey-11-circle.png'),
-  'odyssey-12-circle.png': require('../assets/images/odyssey/odyssey-12-circle.png'),
+const ALL_CATEGORY_IDS = categories.map(c => c.id);
+
+const CATEGORY_ICONS: { [key: string]: string } = {
+  restaurant: 'restaurant',
+  cafe: 'local-cafe',
+  hotel: 'hotel',
+  bar: 'local-bar',
+  activity: 'explore',
+  viewpoint: 'photo-camera',
+  nature: 'park',
+  shopping: 'shopping-bag',
+  museum: 'museum',
+  'hidden-gem': 'star',
 };
 
-export default function ExploreScreen({ route }: any) {
+// cleanCityName and getCityFromCoordinates imported from ../utils/location
+
+export default function ExploreScreen({ route, navigation }: any) {
   const mapRef = useRef<MapView>(null);
-  const [places, setPlaces] = useState<Place[]>([]);
+
+  // Subtle chevron animation for map card
+  const chevronAnim = useRef(new Animated.Value(0)).current;
+
+  // Track which cities have been fetched this session to prevent duplicate API calls
+  const fetchedCitiesRef = useRef<Set<string>>(new Set());
+
+  // View mode state
+  const [showFullMap, setShowFullMap] = useState(false);
+
+  // Places state
+  const [places, setPlaces] = useState<Place[]>([]); // Filtered places for map
+  const [allPlaces, setAllPlaces] = useState<Place[]>([]); // All places for landing page
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+
+  // User state
+  const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{avatar_url?: string} | null>(null);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriendFilters, setSelectedFriendFilters] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(ALL_CATEGORY_IDS);
+  const [selectedPriceLevels, setSelectedPriceLevels] = useState<number[]>([1, 2, 3, 4]);
+  const [showSyrenaPicksFilter, setShowSyrenaPicksFilter] = useState<boolean>(true);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchedLocation, setSearchedLocation] = useState<{lat: number; lng: number; name: string} | null>(null);
+
+  // Handle search text change with ref update to fix Fabric sync issue
+  const handleSearchTextChange = useCallback((text: string) => {
+    setSearchQuery(text);
+  }, []);
+
+  // Modal visibility
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showFriendsSelector, setShowFriendsSelector] = useState(false);
+
+  // Add place form state
   const [newPlace, setNewPlace] = useState<{lat: number; lng: number} | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [placeDescription, setPlaceDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [placeDetails, setPlaceDetails] = useState<any>(null);
-  const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
   const [priceLevel, setPriceLevel] = useState(0);
-  const [showFriendsSelector, setShowFriendsSelector] = useState(false);
-  const [friends, setFriends] = useState<any[]>([]);
-  const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
-  const [odysseyIcon, setOdysseyIcon] = useState<string>('odyssey-1-circle.png');
-  const [savingIcon, setSavingIcon] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<{uri: string; type: string; name: string} | null>(null);
+  const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
+  const [nearbyAlternatives, setNearbyAlternatives] = useState<NearbyAlternative[]>([]);
+  const [showAlternatives, setShowAlternatives] = useState(false);
+  const [loadingAlternative, setLoadingAlternative] = useState(false);
+  const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<{uri: string; type: string; name: string}[]>([]);
+  const [selectedGooglePhotoUrl, setSelectedGooglePhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [placeOwner, setPlaceOwner] = useState<PlaceOwner | null>(null);
+
+  // Details modal state
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [visitors, setVisitors] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  useEffect(() => {
-    getCurrentLocation();
-    loadPlaces();
-    getUser();
+  // General state
+  const [loading, setLoading] = useState(false);
+  const [reloadingSyrenaPicks, setReloadingSyrenaPicks] = useState(false);
 
-    const subscription = supabase
-      .channel('places')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'places' }, loadPlaces)
-      .subscribe();
+  // Edit place state
+  const [editingPlace, setEditingPlace] = useState<Place | null>(null);
+
+  // Initialize - defer heavy operations until after render
+  useEffect(() => {
+    // Use InteractionManager to wait for animations/transitions to complete
+    const task = InteractionManager.runAfterInteractions(() => {
+      getCurrentLocation();
+      getUser();
+    });
+
+    return () => task.cancel();
+  }, []);
+
+  // Subtle chevron micro-motion for map card
+  useEffect(() => {
+    const chevronAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(chevronAnim, {
+          toValue: 4,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(chevronAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    chevronAnimation.start();
 
     return () => {
-      subscription.unsubscribe();
+      chevronAnimation.stop();
     };
   }, []);
 
-  // Handle navigation from My Places
+  // Initialize filters to show all places by default (MY_PLACES + all friends)
   useEffect(() => {
-    if (route?.params?.focusPlace) {
-      const { lat, lng } = route.params.focusPlace;
+    if (user && friends.length >= 0) {
+      const friendIds = friends.map(f => f.friend_id).filter(Boolean);
+      const allFilters = ['MY_PLACES', ...friendIds];
+      // Only set if filters are empty (initial load)
+      if (selectedFriendFilters.length === 0) {
+        setSelectedFriendFilters(allFilters);
+      }
+    }
+  }, [user, friends]);
+
+  // Load places when user, friends, or friend filters change (debounced)
+  useEffect(() => {
+    if (!user) return;
+
+    // Debounce filter changes to prevent excessive API calls
+    // Using 400ms to batch rapid filter toggles
+    const timer = setTimeout(() => {
+      loadPlaces();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [user, friends, selectedFriendFilters, selectedCategories, selectedPriceLevels, showSyrenaPicksFilter]);
+
+  // Realtime subscription and useFocusEffect DISABLED
+  // They were causing constant flickering/reloading
+  // Users can pull-to-refresh or data loads on mount
+
+  // Handle navigation from My Places - focus on a specific place
+  useEffect(() => {
+    if (!route?.params?.focusPlace) return;
+
+    const { lat, lng } = route.params.focusPlace;
+    setShowFullMap(true);
+
+    const timer = setTimeout(() => {
       mapRef.current?.animateToRegion({
         latitude: lat,
         longitude: lng,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       }, 1000);
-    }
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [route?.params?.focusPlace]);
+
+  // Handle navigation from friend's places - filter by friend and focus on their last place
+  useEffect(() => {
+    if (!route?.params?.filterByFriendId) return;
+
+    const friendId = route.params.filterByFriendId;
+    // Set filter to only show this friend's places (not MY_PLACES)
+    setSelectedFriendFilters([friendId]);
+    setShowFullMap(true);
+
+    // Find the friend's most recent place and focus on it
+    const friendPlaces = allPlaces.filter(p => p.user_id === friendId);
+    let timer: NodeJS.Timeout | null = null;
+
+    if (friendPlaces.length > 0) {
+      // Places are already sorted by created_at desc, so first is most recent
+      const lastPlace = friendPlaces[0];
+      timer = setTimeout(() => {
+        mapRef.current?.animateToRegion({
+          latitude: lastPlace.lat,
+          longitude: lastPlace.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 1000);
+      }, 500);
+    }
+
+    // Clear the param to avoid re-triggering
+    navigation.setParams({ filterByFriendId: undefined, filterByFriendName: undefined });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [route?.params?.filterByFriendId, allPlaces]);
+
+  // Search with debounce (500ms to reduce Google API calls)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.length > 2) {
+        searchPlaces(searchQuery);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const getUser = async () => {
     try {
@@ -126,77 +339,112 @@ export default function ExploreScreen({ route }: any) {
       setUser(user);
       if (user) {
         loadFriends(user.id);
-        loadOdysseyIcon(user.id);
+        loadUserProfile(user.id);
       }
     } catch (error: any) {
-      console.error('Error getting user:', error.message || String(error));
+      console.error('Error getting user:', error?.message || 'Unknown error');
     }
   };
 
-  const loadOdysseyIcon = async (userId: string) => {
+  const loadUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
-        .select('odyssey_icon')
+        .select('avatar_url')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
-      if (data?.odyssey_icon) {
-        setOdysseyIcon(data.odyssey_icon);
+      if (data) {
+        setUserProfile(data);
       }
     } catch (error: any) {
-      console.error('Error loading odyssey icon:', error.message || String(error));
-    }
-  };
-
-  const saveOdysseyIcon = async (icon: string) => {
-    if (!user) return;
-    setSavingIcon(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ odyssey_icon: icon })
-        .eq('id', user.id);
-
-      if (error) throw error;
-      setOdysseyIcon(icon);
-      Alert.alert('Success', 'Map pin icon updated!');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setSavingIcon(false);
+      console.error('Error loading profile:', error?.message);
     }
   };
 
   const loadFriends = async (userId: string) => {
     try {
-      // Query friends table and join with profiles to get friend details
-      const { data, error } = await supabase
-        .from('friends')
-        .select(`
-          id,
-          friend_id,
-          status,
-          profiles!inner(id, email)
-        `)
-        .eq('user_id', userId)
+
+      // First get friendships
+      const { data: friendshipsData, error: friendshipsError } = await supabase
+        .from('friendships')
+        .select('*')
+        .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
         .eq('status', 'accepted');
 
-      if (error) throw error;
 
-      // Transform data to match expected format
-      const transformedData = data?.map(friendship => ({
-        ...friendship,
-        friend: {
-          id: friendship.profiles?.id,
-          email: friendship.profiles?.email
-        }
-      })) || [];
+      if (friendshipsError) {
+        console.log('Friendships error:', friendshipsError);
+        setFriends([]);
+        return;
+      }
+
+      if (!friendshipsData || friendshipsData.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      // Get friend IDs
+      const friendIds = friendshipsData.map(f =>
+        f.requester_id === userId ? f.addressee_id : f.requester_id
+      );
+
+      // Fetch profiles for friends
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .in('id', friendIds);
+
+
+      const transformedData = friendshipsData.map(f => {
+        const friendId = f.requester_id === userId ? f.addressee_id : f.requester_id;
+        const friendProfile = profilesData?.find(p => p.id === friendId);
+        return {
+          id: f.id,
+          friend_id: friendId,
+          status: 'accepted',
+          friend: friendProfile || null
+        };
+      });
 
       setFriends(transformedData);
+      // Default all friends to be selected in filters
+      setSelectedFriendFilters(transformedData.map(f => f.friend_id));
     } catch (error: any) {
-      console.error('Error loading friends:', error.message || String(error));
+      setFriends([]);
+    }
+  };
+
+  const getCurrentLocation = () => {
+    // Set default location immediately to prevent UI freeze
+    const defaultLocation = { latitude: 37.78825, longitude: -122.4324 };
+
+    // Set a quick fallback timeout in case geolocation hangs
+    const fallbackTimer = setTimeout(() => {
+      if (!userLocation) {
+        console.log('[Location] Fallback timeout - using default');
+        setUserLocation(defaultLocation);
+      }
+    }, 3000); // 3 second fallback
+
+    try {
+      Geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(fallbackTimer);
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ latitude, longitude });
+        },
+        (error) => {
+          clearTimeout(fallbackTimer);
+          console.log('[Location] Error:', error.message);
+          setUserLocation(defaultLocation);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    } catch (error) {
+      clearTimeout(fallbackTimer);
+      console.log('[Location] Exception:', error);
+      setUserLocation(defaultLocation);
     }
   };
 
@@ -213,112 +461,305 @@ export default function ExploreScreen({ route }: any) {
     }
   };
 
-  const getCurrentLocation = () => {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLocation({ latitude, longitude });
-        mapRef.current?.animateToRegion({
-          latitude,
-          longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }, 1000);
-      },
-      (error) => {
-        console.error('Location error:', error);
-        Alert.alert(
-          'Location Error',
-          'Unable to get your current location. Please check location permissions in Settings.',
-          [{ text: 'OK' }]
-        );
-        // Fallback to default location (San Francisco)
-        const defaultLocation = { latitude: 37.78825, longitude: -122.4324 };
-        setUserLocation(defaultLocation);
-        mapRef.current?.animateToRegion({
-          ...defaultLocation,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }, 1000);
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
-    );
-  };
-
   const loadPlaces = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      // Always get ALL user IDs (user + all friends) for the landing page
+      const allUserIds: string[] = [user.id];
+      const friendIds = friends.map(f => f.friend_id).filter(Boolean);
+      allUserIds.push(...friendIds);
+
+      // Load ALL places first (for landing page sections)
+      const { data: allData, error: allError } = await supabase
         .from('places')
         .select('*')
+        .in('user_id', allUserIds)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPlaces(data || []);
+      if (allError) throw allError;
+
+      const allUserIdsFromData = [...new Set(allData?.map(p => p.user_id))];
+      const allPlaceIds = allData?.map(p => p.id) || [];
+
+      // Fetch profiles and visit counts in parallel
+      const [profilesResult, visitsResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, odyssey_icon')
+          .in('id', allUserIdsFromData),
+        supabase
+          .from('place_visits')
+          .select('place_id')
+          .in('place_id', allPlaceIds)
+      ]);
+
+      const profiles = profilesResult.data;
+      const visits = visitsResult.data || [];
+
+      // Count visits per place
+      const visitCounts: { [key: string]: number } = {};
+      visits.forEach(v => {
+        visitCounts[v.place_id] = (visitCounts[v.place_id] || 0) + 1;
+      });
+
+      const allPlacesWithIcons = allData?.map(place => {
+        const profile = profiles?.find(p => p.id === place.user_id);
+        return {
+          ...place,
+          odyssey_icon: profile?.odyssey_icon || 'odyssey-3.png',
+          visit_count: visitCounts[place.id] || 0
+        };
+      }) || [];
+
+      // Store ALL places for landing page (before any filtering)
+      setAllPlaces(allPlacesWithIcons);
+
+      // Now apply filters for the map view
+      let userIdsToShow: string[] = [];
+
+      // Only show places from checked filters (nothing checked = no places)
+      if (selectedFriendFilters.includes('MY_PLACES')) {
+        userIdsToShow.push(user.id);
+      }
+      const friendFilters = selectedFriendFilters.filter(id => id !== 'MY_PLACES');
+      userIdsToShow.push(...friendFilters);
+
+      userIdsToShow = [...new Set(userIdsToShow)];
+
+      // Filter places for map based on selected friend filters
+      let filteredPlaces = allPlacesWithIcons.filter(place =>
+        userIdsToShow.includes(place.user_id)
+      );
+
+      // Apply Syrena Picks filter
+      if (!showSyrenaPicksFilter) {
+        filteredPlaces = filteredPlaces.filter(place => place.source !== 'syrena');
+      }
+
+      // Apply category and price level filters
+      filteredPlaces = filteredPlaces.filter(place => {
+        // Category filter (if all selected, show all; also show places with unrecognized categories)
+        const placeCategory = place.category || '';
+        const categoryMatch = selectedCategories.length === ALL_CATEGORY_IDS.length ||
+          selectedCategories.includes(placeCategory) ||
+          !ALL_CATEGORY_IDS.includes(placeCategory);
+
+        // Price level filter (if all selected, show all; also include places without price_level)
+        const priceMatch = selectedPriceLevels.length === 4 ||
+          !place.price_level ||
+          selectedPriceLevels.includes(place.price_level);
+
+        return categoryMatch && priceMatch;
+      });
+
+      // Set filtered places for map
+      setPlaces(filteredPlaces);
+
+      // DISABLED: City fetching on load was causing excessive API charges ($1500+)
+      // Cities are now set when places are CREATED (see savePlace below)
     } catch (error: any) {
-      console.error('Error loading places:', error.message || String(error));
+      console.error('Error loading places:', error?.message || 'Unknown error');
     }
   };
 
-  const fetchPlaceDetails = async (lat: number, lng: number) => {
-    setLoadingPlaceDetails(true);
+  // Reload Syrena picks: delete existing ones and regenerate
+  const reloadSyrenaPicks = async () => {
+    if (!user || reloadingSyrenaPicks) return;
 
-    try {
-      // Call our Next.js API endpoint to fetch place details
-      // Use localhost for simulator, or your machine's IP for real device
-      const API_URL = Platform.OS === 'ios'
-        ? 'http://localhost:3000/api/places'
-        : 'http://10.0.2.2:3000/api/places'; // Android emulator uses 10.0.2.2 for localhost
+    Alert.alert(
+      'Reload Recommendations',
+      'This will replace your current Syrena picks with fresh recommendations. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reload',
+          onPress: async () => {
+            setReloadingSyrenaPicks(true);
+            try {
+              // Delete existing Syrena picks
+              const { error: deleteError } = await supabase
+                .from('places')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('source', 'syrena');
 
-      const response = await fetch(`${API_URL}?lat=${lat}&lng=${lng}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+              if (deleteError) throw deleteError;
+
+              // Reset onboarding flag so it can re-run
+              await supabase
+                .from('profiles')
+                .update({ onboarding_complete: false })
+                .eq('id', user.id);
+
+              // Get location and regenerate
+              const location = userLocation || { latitude: 37.78825, longitude: -122.4324 };
+              await runOnboardingIfNeeded(user.id, location, {
+                onComplete: (count) => {
+                  console.log(`[Reload] Regenerated ${count} Syrena Picks`);
+                  loadPlaces();
+                },
+                onError: (err) => {
+                  Alert.alert('Error', 'Failed to reload recommendations. Please try again.');
+                  console.error('[Reload] Error:', err);
+                },
+              });
+            } catch (err: any) {
+              console.error('[Reload] Error:', err?.message || err);
+              Alert.alert('Error', 'Failed to reload recommendations.');
+            } finally {
+              setReloadingSyrenaPicks(false);
+            }
+          },
         },
-        signal: AbortSignal.timeout(5000), // 5 second timeout
+      ]
+    );
+  };
+
+  // Search functionality using Google Places API with location bias
+  const searchPlaces = async (query: string) => {
+    setIsSearching(true);
+    try {
+      const API_URL = getApiUrl('search');
+
+      // Build URL with location bias if available
+      let url = `${API_URL}?query=${encodeURIComponent(query)}`;
+      if (userLocation) {
+        url += `&lat=${userLocation.latitude}&lng=${userLocation.longitude}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (response.ok) {
-        const placeInfo = await response.json();
+        const data = await response.json();
+        if (data.predictions) {
+          setSearchResults(data.predictions);
+          setShowSearchResults(true);
+        } else {
+          setSearchResults([]);
+          setShowSearchResults(false);
+        }
+      } else {
+        console.log('Search API error:', response.status);
+        setSearchResults([]);
+      }
+    } catch (error: any) {
+      console.log('Search error:', error.message);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
-        // Only set place details if we got valid data
+  const handleSearchResultPress = async (result: SearchResult) => {
+    setIsSearching(true);
+    try {
+      // Get place details to get coordinates
+      const API_URL = getApiUrl('place-details');
+      const response = await fetch(`${API_URL}?place_id=${result.place_id}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.result?.geometry?.location) {
+          const { lat, lng } = data.result.geometry.location;
+          const placeName = result.structured_formatting.main_text;
+
+          // Set the searched location to show a pin
+          setSearchedLocation({ lat, lng, name: placeName });
+
+          // Navigate to full map and focus on location
+          setShowFullMap(true);
+          setSearchQuery('');
+          setShowSearchResults(false);
+
+          setTimeout(() => {
+            mapRef.current?.animateToRegion({
+              latitude: lat,
+              longitude: lng,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }, 1000);
+          }, 300);
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Could not find location');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const fetchPlaceDetails = async (lat: number, lng: number, skipAutoFill: boolean = false) => {
+    setLoadingPlaceDetails(true);
+    setNearbyAlternatives([]);
+    setShowAlternatives(false);
+
+    try {
+      const API_URL = getApiUrl('places');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+
+      const response = await fetch(`${API_URL}?lat=${lat}&lng=${lng}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        const placeInfo = data.placeDetails;
+        const alternatives = data.nearbyAlternatives || [];
+
+        // Store nearby alternatives for "wrong place" feature
+        setNearbyAlternatives(alternatives);
+
         if (placeInfo && !placeInfo.error) {
-          setPlaceDetails(placeInfo);
-
-          // Auto-populate form
-          if (placeInfo.name) {
-            setPlaceName(placeInfo.name);
+          // Extract city from address (typically format: "123 St, City, State, Country")
+          let city = '';
+          if (placeInfo.address) {
+            const parts = placeInfo.address.split(',').map((p: string) => p.trim());
+            // City is usually the 2nd part (after street address)
+            if (parts.length >= 2) {
+              city = cleanCityName(parts[1]);
+            }
           }
-          if (placeInfo.priceLevel) {
-            setPriceLevel(placeInfo.priceLevel);
-          }
+          setPlaceDetails({ ...placeInfo, city });
 
-          // Auto-detect category
-          if (placeInfo.types && placeInfo.types.length > 0) {
-            const types = placeInfo.types;
-            if (types.includes('restaurant') || types.includes('food')) {
-              setSelectedCategory('restaurant');
-            } else if (types.includes('cafe') || types.includes('coffee')) {
-              setSelectedCategory('cafe');
-            } else if (types.includes('hotel') || types.includes('lodging')) {
-              setSelectedCategory('hotel');
-            } else if (types.includes('shopping_mall') || types.includes('store')) {
-              setSelectedCategory('shopping');
-            } else if (types.includes('museum') || types.includes('art_gallery')) {
-              setSelectedCategory('museum');
-            } else if (types.includes('park') || types.includes('natural_feature')) {
-              setSelectedCategory('nature');
-            } else if (types.includes('tourist_attraction')) {
-              setSelectedCategory('viewpoint');
+          // Only auto-fill if not skipping and user hasn't chosen custom place
+          if (!skipAutoFill) {
+            if (placeInfo.name) {
+              setPlaceName(placeInfo.name);
+            }
+            if (placeInfo.priceLevel) {
+              setPriceLevel(placeInfo.priceLevel);
+            }
+
+            if (placeInfo.types && placeInfo.types.length > 0) {
+              const types = placeInfo.types;
+              if (types.includes('bar') || types.includes('night_club')) {
+                setSelectedCategory('bar');
+              } else if (types.includes('restaurant') || types.includes('food')) {
+                setSelectedCategory('restaurant');
+              } else if (types.includes('hotel') || types.includes('lodging')) {
+                setSelectedCategory('hotel');
+              } else {
+                setSelectedCategory('activity');
+              }
             }
           }
         }
       }
     } catch (error: any) {
-      // Silently fail - place details are optional
-      console.log('Place details not available (this is optional)');
+      console.log('Error fetching place details:', error.message);
     } finally {
       setLoadingPlaceDetails(false);
     }
@@ -326,221 +767,537 @@ export default function ExploreScreen({ route }: any) {
 
   const handleMapPress = (event: any) => {
     const coordinate = event.nativeEvent.coordinate;
+
+    resetForm();
     setNewPlace({ lat: coordinate.latitude, lng: coordinate.longitude });
     setShowAddModal(true);
-
-    // Fetch place details from Google Places API (non-blocking)
     fetchPlaceDetails(coordinate.latitude, coordinate.longitude);
+  };
+
+  const handlePoiClick = (event: any) => {
+    const { coordinate } = event.nativeEvent;
+
+    resetForm();
+    setNewPlace({ lat: coordinate.latitude, lng: coordinate.longitude });
+    setShowAddModal(true);
+    fetchPlaceDetails(coordinate.latitude, coordinate.longitude);
+  };
+
+  const [useCustomPlace, setUseCustomPlace] = useState(false);
+
+  const resetForm = () => {
+    setPlaceName('');
+    setPlaceDescription('');
+    setSelectedCategory('');
+    setPlaceDetails(null);
+    setPriceLevel(0);
+    setSelectedPhotos([]);
+    setSelectedGooglePhotoUrl(null);
+    setNewPlace(null);
+    setPlaceOwner(null);
+    setEditingPlace(null);
+    setUseCustomPlace(false);
+    setNearbyAlternatives([]);
+    setShowAlternatives(false);
+  };
+
+  const clearGoogleSuggestion = () => {
+    // If there are alternatives, show them instead of clearing everything
+    if (nearbyAlternatives.length > 0) {
+      setShowAlternatives(true);
+    } else {
+      // No alternatives available, fall back to custom entry
+      setPlaceDetails(null);
+      setPlaceName('');
+      setSelectedCategory('');
+      setPriceLevel(0);
+      setSelectedGooglePhotoUrl(null);
+      setUseCustomPlace(true);
+    }
+  };
+
+  const selectAlternativePlace = async (alternative: NearbyAlternative) => {
+    setLoadingAlternative(true);
+    setShowAlternatives(false);
+
+    try {
+      const API_URL = getApiUrl('places');
+      const response = await fetch(`${API_URL}/details?place_id=${alternative.placeId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const placeInfo = data.placeDetails;
+
+        if (placeInfo && !placeInfo.error) {
+          // Extract city from address
+          let city = '';
+          if (placeInfo.address) {
+            const parts = placeInfo.address.split(',').map((p: string) => p.trim());
+            if (parts.length >= 2) {
+              city = cleanCityName(parts[1]);
+            }
+          }
+          setPlaceDetails({ ...placeInfo, city });
+          setPlaceName(placeInfo.name || '');
+          setSelectedGooglePhotoUrl(null); // Reset photo selection for new place
+
+          if (placeInfo.priceLevel) {
+            setPriceLevel(placeInfo.priceLevel);
+          }
+
+          // Auto-detect category from types
+          if (placeInfo.types && placeInfo.types.length > 0) {
+            const types = placeInfo.types;
+            if (types.includes('bar') || types.includes('night_club')) {
+              setSelectedCategory('bar');
+            } else if (types.includes('restaurant') || types.includes('food')) {
+              setSelectedCategory('restaurant');
+            } else if (types.includes('hotel') || types.includes('lodging')) {
+              setSelectedCategory('hotel');
+            } else {
+              setSelectedCategory('activity');
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.log('Error fetching alternative place details:', error.message);
+      Alert.alert('Error', 'Could not load place details');
+    } finally {
+      setLoadingAlternative(false);
+    }
+  };
+
+  const enterCustomPlace = () => {
+    setShowAlternatives(false);
+    setPlaceDetails(null);
+    setPlaceName('');
+    setSelectedCategory('');
+    setPriceLevel(0);
+    setSelectedGooglePhotoUrl(null);
+    setUseCustomPlace(true);
   };
 
   const pickImage = () => {
     Alert.alert(
       'Add Photo',
-      'Choose an option',
+      'Choose a photo source',
       [
-        {
-          text: 'Take Photo',
-          onPress: () => {
-            launchCamera(
-              {
-                mediaType: 'photo',
-                quality: 0.8,
-                maxWidth: 1024,
-                maxHeight: 1024,
-              },
-              (response) => {
-                if (response.assets && response.assets[0]) {
-                  const asset = response.assets[0];
-                  setSelectedPhoto({
-                    uri: asset.uri || '',
-                    type: asset.type || 'image/jpeg',
-                    name: asset.fileName || `photo_${Date.now()}.jpg`,
-                  });
-                }
-              }
-            );
-          },
-        },
-        {
-          text: 'Choose from Library',
-          onPress: () => {
-            launchImageLibrary(
-              {
-                mediaType: 'photo',
-                quality: 0.8,
-                maxWidth: 1024,
-                maxHeight: 1024,
-              },
-              (response) => {
-                if (response.assets && response.assets[0]) {
-                  const asset = response.assets[0];
-                  setSelectedPhoto({
-                    uri: asset.uri || '',
-                    type: asset.type || 'image/jpeg',
-                    name: asset.fileName || `photo_${Date.now()}.jpg`,
-                  });
-                }
-              }
-            );
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Camera', onPress: () => launchCamera({ mediaType: 'photo' }, handleCameraResponse) },
+        { text: 'Gallery', onPress: () => launchImageLibrary({ mediaType: 'photo', selectionLimit: 5 }, handleGalleryResponse) },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
-  const uploadPhoto = async (userId: string): Promise<string | null> => {
-    if (!selectedPhoto) return null;
+  const handleCameraResponse = (response: any) => {
+    if (response.didCancel || response.errorCode) return;
+
+    const asset = response.assets?.[0];
+    if (asset) {
+      setSelectedPhotos(prev => [...prev, {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || `photo_${Date.now()}.jpg`,
+      }]);
+    }
+  };
+
+  const handleGalleryResponse = (response: any) => {
+    if (response.didCancel || response.errorCode) return;
+
+    const assets = response.assets || [];
+    const newPhotos = assets.map((asset: any) => ({
+      uri: asset.uri,
+      type: asset.type || 'image/jpeg',
+      name: asset.fileName || `photo_${Date.now()}.jpg`,
+    }));
+    setSelectedPhotos(prev => [...prev, ...newPhotos]);
+  };
+
+  const removePhoto = (index: number) => {
+    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadPhotos = async (): Promise<string[]> => {
+    if (selectedPhotos.length === 0) return [];
 
     setUploadingPhoto(true);
+    const uploadedUrls: string[] = [];
+
     try {
-      // Read the file as base64
-      const fileExt = selectedPhoto.name.split('.').pop();
-      const filePath = `${userId}/${Date.now()}.${fileExt}`;
+      for (const photo of selectedPhotos) {
+        const fileName = `${user?.id}/${Date.now()}-${photo.name}`;
 
-      // Upload to Supabase Storage
-      const response = await fetch(selectedPhoto.uri);
-      const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
+        const formData = new FormData();
+        formData.append('file', {
+          uri: photo.uri,
+          type: photo.type,
+          name: photo.name,
+        } as any);
 
-      const { error: uploadError } = await supabase.storage
-        .from('place-photos')
-        .upload(filePath, arrayBuffer, {
-          contentType: selectedPhoto.type,
-          upsert: false,
-        });
+        const { error } = await supabase.storage
+          .from('place-photos')
+          .upload(fileName, formData);
 
-      if (uploadError) throw uploadError;
+        if (error) {
+          console.error('Upload error for photo:', error);
+          continue;
+        }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('place-photos')
-        .getPublicUrl(filePath);
+        const { data: urlData } = supabase.storage
+          .from('place-photos')
+          .getPublicUrl(fileName);
 
-      return publicUrl;
+        uploadedUrls.push(urlData.publicUrl);
+      }
+
+      return uploadedUrls;
     } catch (error: any) {
-      console.error('Error uploading photo:', error);
-      Alert.alert('Error', 'Failed to upload photo');
-      return null;
+      console.error('Upload error:', error);
+      return uploadedUrls;
     } finally {
       setUploadingPhoto(false);
     }
   };
 
   const savePlace = async () => {
-    if (!placeName?.trim()) {
-      Alert.alert('Missing Information', 'Please enter a place name');
+    if (!newPlace || !placeName || !selectedCategory) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    if (!selectedCategory) {
-      Alert.alert('Missing Information', 'Please select a category');
-      return;
-    }
-
-    if (!newPlace) {
-      Alert.alert('Error', 'Invalid location. Please try again.');
+    if (selectedPhotos.length === 0 && !selectedGooglePhotoUrl) {
+      Alert.alert('Photo Required', 'Please select a Google photo or upload your own before saving.');
       return;
     }
 
     setLoading(true);
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-      if (userError) {
-        throw new Error('Authentication error: ' + userError.message);
-      }
-
-      if (!user) {
-        throw new Error('You must be logged in to save places');
-      }
-
-      // Upload photo if selected
       let photoUrl = null;
-      if (selectedPhoto) {
-        photoUrl = await uploadPhoto(user.id);
-        if (!photoUrl) {
-          // Photo upload failed, but continue anyway
-          console.warn('Photo upload failed, continuing without photo');
+      if (selectedPhotos.length > 0) {
+        // User uploaded their own photos - upload them
+        const uploadedUrls = await uploadPhotos();
+        if (uploadedUrls.length > 0) {
+          // Store first photo as main photo_url, additional as JSON in photo_urls
+          photoUrl = uploadedUrls[0];
+        }
+      } else if (selectedGooglePhotoUrl) {
+        // User selected a Google photo - use that URL directly
+        photoUrl = selectedGooglePhotoUrl;
+      }
+
+      // Extract city from placeDetails (one-time, no additional API call)
+      let city: string | null = null;
+      if (placeDetails?.city) {
+        city = cleanCityName(placeDetails.city);
+      } else if (placeDetails?.address) {
+        // Fallback: extract city from address
+        const parts = placeDetails.address.split(',').map((p: string) => p.trim());
+        if (parts.length >= 2) {
+          city = cleanCityName(parts[1]);
         }
       }
 
       const placeData = {
-        name: placeName.trim(),
+        name: placeName,
+        description: placeDescription,
         lat: newPlace.lat,
         lng: newPlace.lng,
-        description: placeDescription?.trim() || null,
         category: selectedCategory,
         price_level: priceLevel > 0 ? priceLevel : null,
         photo_url: photoUrl,
-        odyssey_icon: odysseyIcon,
-        created_by: user.id,
+        user_id: user.id,
+        city: city, // Store city once - no need to fetch again!
       };
 
       const { error } = await supabase.from('places').insert(placeData);
 
-      if (error) {
-        throw new Error('Failed to save place: ' + error.message);
-      }
+      if (error) throw new Error('Failed to save place: ' + error.message);
 
-      // Success!
       setShowAddModal(false);
       resetForm();
+      setSearchedLocation(null);
       await loadPlaces();
-
       Alert.alert('Success', `"${placeName}" has been saved!`);
     } catch (error: any) {
-      console.error('Error saving place:', error);
-      Alert.alert(
-        'Error Saving Place',
-        error.message || 'An unexpected error occurred. Please try again.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error Saving Place', error.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setPlaceName('');
-    setPlaceDescription('');
-    setSelectedCategory('');
-    setNewPlace(null);
-    setPlaceDetails(null);
-    setPriceLevel(0);
-    setSelectedPhoto(null);
-  };
-
-  const getCategoryIcon = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    return category?.icon || 'place';
-  };
-
-  const handleMarkerPress = (place: Place) => {
+  const handleMarkerPress = async (place: Place) => {
     setSelectedPlace(place);
-    setShowDetailsModal(true);
+    setVisitors([]);
+
+    try {
+      const { data: ownerData } = await supabase
+        .from('profiles')
+        .select('id, username, display_name')
+        .eq('id', place.user_id)
+        .single();
+
+      if (ownerData) {
+        setPlaceOwner(ownerData);
+      }
+    } catch (error) {
+      console.error('Error loading place owner:', error);
+    }
+
     loadComments(place.id);
+    loadVisitors(place.id);
+    setShowDetailsModal(true);
   };
 
-  const handleDeletePlace = async (placeId: string) => {
+  const loadVisitors = async (placeId: string) => {
     try {
-      const { error } = await supabase
-        .from('places')
-        .delete()
-        .eq('id', placeId);
+      const { data, error } = await supabase
+        .from('place_visits')
+        .select('*, profiles:visitor_id(username, display_name, avatar_url)')
+        .eq('place_id', placeId)
+        .order('visited_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading visitors:', error);
+        setVisitors([]);
+        return;
+      }
+      setVisitors(data || []);
+    } catch (error: any) {
+      console.error('Error loading visitors:', error);
+      setVisitors([]);
+    }
+  };
+
+  const loadComments = async (placeId: string) => {
+    try {
+
+      // First get comments
+      const { data: commentsData, error } = await supabase
+        .from('place_comments')
+        .select('*')
+        .eq('place_id', placeId)
+        .order('created_at', { ascending: false });
+
+
+      if (error) {
+        console.log('Error loading comments:', error);
+        setComments([]);
+        return;
+      }
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments([]);
+        return;
+      }
+
+
+      // Then get profiles for each comment
+      const userIds = [...new Set(commentsData.map(c => c.created_by))];
+
+      const { data: profilesData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, display_name')
+        .in('id', userIds);
+
+
+      // Merge profiles into comments
+      const commentsWithProfiles = commentsData.map(comment => ({
+        ...comment,
+        profiles: profilesData?.find(p => p.id === comment.created_by) || null,
+      }));
+
+      setComments(commentsWithProfiles);
+    } catch (error: any) {
+      console.log('Exception loading comments:', error);
+      setComments([]);
+    }
+  };
+
+  const submitComment = async () => {
+    if (!newComment.trim() || !selectedPlace) return;
+
+    setSubmittingComment(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: insertData, error } = await supabase
+        .from('place_comments')
+        .insert({
+          place_id: selectedPlace.id,
+          created_by: user.id,
+          comment: newComment.trim(),
+        })
+        .select();
 
       if (error) throw error;
 
-      setShowDetailsModal(false);
-      setSelectedPlace(null);
-      loadPlaces();
-      Alert.alert('Success', 'Place deleted');
+      // Get user profile for the optimistic update
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name, username')
+        .eq('id', user.id)
+        .single();
+
+      const senderName = profile?.display_name || profile?.username || 'Someone';
+
+      // Add the comment to the UI with the real ID from insert
+      const newCommentObj: Comment = {
+        id: insertData?.[0]?.id || `temp-${Date.now()}`,
+        comment: newComment.trim(),
+        created_at: new Date().toISOString(),
+        profiles: {
+          display_name: profile?.display_name,
+          username: profile?.username,
+        },
+      };
+      setComments(prevComments => [newCommentObj, ...prevComments]);
+
+      // Notify the place owner (if not commenting on own place)
+      if (selectedPlace.user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: selectedPlace.user_id,
+          type: 'place_comment',
+          title: 'New Comment',
+          message: `${senderName} commented on ${selectedPlace.name}`,
+          data: { place_id: selectedPlace.id, commenter_id: user.id },
+          read: false,
+        });
+      }
+
+      setNewComment('');
+      Alert.alert('Success', 'Comment added!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const markAsVisited = async (placeId: string) => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('Not authenticated');
+
+      // Get place details first to know the owner
+      const { data: place } = await supabase
+        .from('places')
+        .select('user_id, name')
+        .eq('id', placeId)
+        .single();
+
+      // Insert into place_visits table
+      const { error: visitError } = await supabase
+        .from('place_visits')
+        .insert({
+          place_id: placeId,
+          visitor_id: currentUser.id,
+        });
+
+      if (visitError) {
+        // Check if it's a unique constraint error (already visited)
+        if (visitError.code === '23505') {
+          Alert.alert('Already Visited', 'You have already marked this place as visited!');
+          return;
+        }
+        throw visitError;
+      }
+
+      // Notify the place owner (if not visiting own place)
+      if (place && place.user_id !== currentUser.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, username')
+          .eq('id', currentUser.id)
+          .single();
+
+        const visitorName = profile?.display_name || profile?.username || 'Someone';
+
+        await supabase.from('notifications').insert({
+          user_id: place.user_id,
+          type: 'place_visit',
+          title: 'New Visit',
+          message: `${visitorName} visited ${place.name}`,
+          data: { place_id: placeId, visitor_id: currentUser.id },
+          read: false,
+        });
+      }
+
+      // Count visits directly from place_visits table
+      const { data: visits } = await supabase
+        .from('place_visits')
+        .select('place_id')
+        .eq('place_id', placeId);
+
+      const newVisitCount = visits?.length || 0;
+
+      // Update selectedPlace state
+      if (selectedPlace) {
+        setSelectedPlace({ ...selectedPlace, visit_count: newVisitCount });
+      }
+
+      // Update allPlaces state directly instead of reloading (prevents race condition)
+      setAllPlaces(prev => prev.map(p =>
+        p.id === placeId ? { ...p, visit_count: newVisitCount } : p
+      ));
+
+      // Only reload visitors list, not all places
+      loadVisitors(placeId);
+      Alert.alert('Success', 'Marked as visited!');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const sharePlace = async (place: Place) => {
+    try {
+      const categoryEmoji: Record<string, string> = {
+        hotel: '🏨',
+        restaurant: '🍽️',
+        cafe: '☕',
+        bar: '🍸',
+        activity: '✨',
+        viewpoint: '📸',
+        nature: '🌿',
+        shopping: '🛍️',
+        museum: '🏛️',
+        'hidden-gem': '💎',
+      };
+      const emoji = categoryEmoji[place.category || 'activity'] || '📍';
+
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}+${place.lat},${place.lng}`;
+
+      const message = `${emoji} ${place.name}
+
+${place.description ? `"${place.description}"\n\n` : ''}📍 ${googleMapsUrl}
+
+━━━━━━━━━━━━━━━
+Shared via Syrena
+Your trusted travel companion`;
+
+      await Share.share({
+        message,
+        title: `${place.name} - Syrena`,
+      });
+    } catch (error: any) {
+      console.error('Share error:', error);
+    }
+  };
+
+  const openInGoogleMaps = (place: Place) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}+${place.lat},${place.lng}`;
+    Linking.openURL(url).catch((err) => {
+      console.error('Failed to open Google Maps:', err);
+      Alert.alert('Error', 'Could not open Google Maps');
+    });
   };
 
   const confirmDeletePlace = (placeId: string, placeName: string) => {
@@ -558,664 +1315,709 @@ export default function ExploreScreen({ route }: any) {
     );
   };
 
-  const markAsVisited = async (placeId: string) => {
+  const handleDeletePlace = async (placeId: string) => {
     try {
-      const { data: place } = await supabase
-        .from('places')
-        .select('visit_count')
-        .eq('id', placeId)
-        .single();
-
-      const newCount = (place?.visit_count || 0) + 1;
-
       const { error } = await supabase
         .from('places')
-        .update({ visit_count: newCount })
+        .delete()
         .eq('id', placeId);
 
       if (error) throw error;
 
-      // Update local state
-      if (selectedPlace) {
-        setSelectedPlace({ ...selectedPlace, visit_count: newCount });
-      }
-      loadPlaces();
-      Alert.alert('Success', 'Marked as visited!');
+      setPlaces(prevPlaces => prevPlaces.filter(p => p.id !== placeId));
+      setShowDetailsModal(false);
+      setSelectedPlace(null);
+      Alert.alert('Success', 'Place deleted');
+      await loadPlaces();
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
   };
 
-  const loadComments = async (placeId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('place_comments')
-        .select('*, profiles(username, display_name)')
-        .eq('place_id', placeId)
-        .order('created_at', { ascending: false });
+  const handleEditPlace = (place: Place) => {
+    // Close details modal
+    setShowDetailsModal(false);
+    setSelectedPlace(null);
 
-      if (error) throw error;
-      setComments(data || []);
-    } catch (error: any) {
-      console.error('Error loading comments:', error.message);
+    // Set editing state and pre-fill form
+    setEditingPlace(place);
+    setNewPlace({ lat: place.lat, lng: place.lng });
+    setPlaceName(place.name);
+    setPlaceDescription(place.description || '');
+    setSelectedCategory(place.category || '');
+    setPriceLevel(place.price_level || 0);
+    if (place.photo_url) {
+      setSelectedGooglePhotoUrl(place.photo_url);
     }
+
+    // Show add modal (which will be in edit mode)
+    setShowAddModal(true);
   };
 
-  const submitComment = async () => {
-    if (!newComment.trim() || !selectedPlace) return;
+  const updatePlace = async () => {
+    if (!editingPlace || !placeName || !selectedCategory) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
 
-    setSubmittingComment(true);
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      let photoUrl = editingPlace.photo_url;
+      if (selectedPhotos.length > 0) {
+        // User uploaded new photos
+        const uploadedUrls = await uploadPhotos();
+        if (uploadedUrls.length > 0) {
+          photoUrl = uploadedUrls[0];
+        }
+      } else if (selectedGooglePhotoUrl && selectedGooglePhotoUrl !== editingPlace.photo_url) {
+        // User selected a different Google photo
+        photoUrl = selectedGooglePhotoUrl;
+      }
+
       const { error } = await supabase
-        .from('place_comments')
-        .insert({
-          place_id: selectedPlace.id,
-          user_id: user.id,
-          comment: newComment.trim(),
-        });
+        .from('places')
+        .update({
+          name: placeName,
+          description: placeDescription,
+          category: selectedCategory,
+          price_level: priceLevel > 0 ? priceLevel : null,
+          photo_url: photoUrl,
+        })
+        .eq('id', editingPlace.id);
 
-      if (error) throw error;
+      if (error) throw new Error('Failed to update place: ' + error.message);
 
-      setNewComment('');
-      loadComments(selectedPlace.id);
-      Alert.alert('Success', 'Comment added!');
+      setShowAddModal(false);
+      setEditingPlace(null);
+      resetForm();
+      await loadPlaces();
+      Alert.alert('Success', `"${placeName}" has been updated!`);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error Updating Place', error.message || 'An unexpected error occurred.');
     } finally {
-      setSubmittingComment(false);
+      setLoading(false);
     }
   };
 
-  const getMarkerColor = (categoryId: string) => {
-    const colors: {[key: string]: string} = {
-      restaurant: '#5B8C9E',
-      cafe: '#7FA9BA',
-      viewpoint: '#4A7A8C',
-      nature: '#6B9DAE',
-      shopping: '#8BAFC0',
-      hotel: '#3D6B7D',
-      museum: '#5F8FA1',
-      'hidden-gem': '#4D7C8E',
-      'people-watching': '#6A9AAC',
-      other: '#7B8C94',
-    };
-    return colors[categoryId] || '#3D6B7D';
+  const handleFriendFilterChange = (friendId: string) => {
+    // Additive filter - toggle the selection
+    if (selectedFriendFilters.includes(friendId)) {
+      // Unchecking - remove from filters
+      setSelectedFriendFilters(prev => prev.filter(id => id !== friendId));
+    } else {
+      // Checking - add to filters
+      setSelectedFriendFilters(prev => [...prev, friendId]);
+    }
   };
 
-  return (
-    <View style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Explore</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => setShowSearch(!showSearch)}
-            >
-              <Icon name="search" size={24} color={theme.colors.midnightBlue} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.profileButton}
-              onPress={() => setShowProfileModal(true)}
-            >
-              {user ? (
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {user.email?.[0]?.toUpperCase()}
-                  </Text>
-                  <View style={styles.statusDot} />
-                </View>
-              ) : (
-                <Icon name="account-circle" size={32} color={theme.colors.midnightBlue} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SafeAreaView>
+  const handleCategoryChange = (category: string) => {
+    if (selectedCategories.includes(category)) {
+      // Don't allow deselecting all - keep at least one
+      if (selectedCategories.length > 1) {
+        setSelectedCategories(prev => prev.filter(c => c !== category));
+      }
+    } else {
+      setSelectedCategories(prev => [...prev, category]);
+    }
+  };
 
-      {showSearch && (
-        <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color={theme.colors.oceanGrey} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for places..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoFocus
-          />
-          <TouchableOpacity onPress={() => setShowSearch(false)}>
-            <Icon name="close" size={20} color={theme.colors.oceanGrey} />
-          </TouchableOpacity>
-        </View>
-      )}
+  const handlePriceLevelChange = (level: number) => {
+    if (selectedPriceLevels.includes(level)) {
+      // Don't allow deselecting all - keep at least one
+      if (selectedPriceLevels.length > 1) {
+        setSelectedPriceLevels(prev => prev.filter(l => l !== level));
+      }
+    } else {
+      setSelectedPriceLevels(prev => [...prev, level]);
+    }
+  };
 
-      {/* Help Banner */}
-      {places.length === 0 && (
-        <View style={styles.helpBanner}>
-          <Icon name="info-outline" size={16} color={theme.colors.oceanGrey} />
-          <Text style={styles.helpText}>
-            Tap and hold to add a place • Scroll with one finger
-          </Text>
-        </View>
-      )}
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setShowProfileModal(false);
+  };
 
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        showsUserLocation
-        showsMyLocationButton={false}
-        onPress={handleMapPress}
-        initialRegion={{
-          latitude: userLocation?.latitude || 37.78825,
-          longitude: userLocation?.longitude || -122.4324,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        }}
+  // Get user's best recommendations (most visited) - memoized for performance
+  // Use allPlaces for landing page sections (unfiltered), places for map (filtered)
+  const myPlaces = useMemo(() => allPlaces.filter(p => p.user_id === user?.id), [allPlaces, user?.id]);
+  const topRecommendations = useMemo(() => [...myPlaces].sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0)).slice(0, 6), [myPlaces]);
+  const recentPlaces = useMemo(() => [...allPlaces].slice(0, 8), [allPlaces]);
+  const friendsPlaces = useMemo(() => allPlaces.filter(p => p.user_id !== user?.id && p.source !== 'syrena').slice(0, 6), [allPlaces, user?.id]);
+  const syrenaPlaces = useMemo(() => allPlaces.filter(p => p.source === 'syrena').slice(0, 10), [allPlaces]);
+
+  // Helper to get friend info for a place - memoized for performance
+  const getFriendInfo = useCallback((userId: string): { name: string | null; avatar_url: string | null } => {
+    const friendship = friends.find(f => f.friend_id === userId);
+    if (friendship?.friend) {
+      return {
+        name: friendship.friend.display_name || friendship.friend.username || null,
+        avatar_url: friendship.friend.avatar_url || null,
+      };
+    }
+    return { name: null, avatar_url: null };
+  }, [friends]);
+
+  // Navigate to place on map
+  const goToPlaceOnMap = useCallback((place: Place) => {
+    setShowFullMap(true);
+    setSelectedPlace(place);
+    setTimeout(() => {
+      mapRef.current?.animateToRegion({
+        latitude: place.lat,
+        longitude: place.lng,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }, 500);
+    }, 300);
+  }, []);
+
+  // Render place card for horizontal list - editorial image treatment
+  const renderPlaceCard = (place: Place, size: 'small' | 'large' = 'small') => {
+    const isFriendsPick = place.user_id !== user?.id;
+    const friendInfo = isFriendsPick ? getFriendInfo(place.user_id) : null;
+
+    return (
+      <PressableScale
+        key={place.id}
+        style={[styles.placeCard, size === 'large' && styles.placeCardLarge]}
+        onPress={() => handleMarkerPress(place)}
+        scaleValue={0.97}
       >
-        {places.map((place) => {
-          // Use the place's saved odyssey icon
-          const iconSource = place.odyssey_icon && odysseyIconMap[place.odyssey_icon]
-            ? odysseyIconMap[place.odyssey_icon]
-            : undefined;
+        <View style={styles.imageContainer}>
+          {place.photo_url ? (
+            <>
+              <Image source={{ uri: place.photo_url }} style={styles.placeImage} resizeMode="cover" />
+              {/* Editorial gradient overlay - transparent to subtle dark */}
+              <LinearGradient
+                colors={['transparent', 'rgba(0, 0, 0, 0.08)']}
+                style={styles.imageGradient}
+              />
+              {/* Warm color treatment overlay */}
+              <View style={styles.warmOverlay} />
+            </>
+          ) : (
+            <View style={[styles.placeImage, styles.placeholderImage]}>
+              <Icon name={CATEGORY_ICONS[place.category || 'activity'] || 'place'} size={32} color={theme.colors.textTertiary} />
+            </View>
+          )}
 
-          return (
-            <Marker
-              key={place.id}
-              coordinate={{ latitude: place.lat, longitude: place.lng }}
-              title={place.name}
-              description={place.description}
-              pinColor={!iconSource ? getMarkerColor(place.category || 'other') : undefined}
-              onPress={() => handleMarkerPress(place)}
-            >
-              {iconSource && (
+          {/* Friend's pick badge with profile icon */}
+          {isFriendsPick && friendInfo?.name && place.source !== 'syrena' && (
+            <View style={styles.friendPickBadge}>
+              {friendInfo.avatar_url ? (
                 <Image
-                  source={iconSource}
-                  style={{ width: 40, height: 40 }}
-                  resizeMode="contain"
+                  source={{ uri: friendInfo.avatar_url }}
+                  style={styles.friendAvatar}
                 />
+              ) : (
+                <View style={styles.friendAvatarPlaceholder}>
+                  <Icon name="person" size={10} color={theme.colors.surface} />
+                </View>
               )}
-            </Marker>
-          );
-        })}
-      </MapView>
+              <Text style={styles.friendPickText} numberOfLines={1}>
+                {friendInfo.name.split(' ')[0]}'s pick
+              </Text>
+            </View>
+          )}
 
-      {/* Floating Action Buttons */}
-      <View style={styles.floatingButtons}>
-        {/* Friends Filter Button */}
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={() => setShowFriendsSelector(!showFriendsSelector)}
-        >
-          <Icon name="people" size={24} color={theme.colors.offWhite} />
-          {selectedFriendFilter && <View style={styles.filterActiveDot} />}
-        </TouchableOpacity>
-
-        {/* Current Location Button */}
-        <TouchableOpacity
-          style={[styles.floatingButton, styles.locationButton]}
-          onPress={recenterToCurrentLocation}
-        >
-          <Icon name="my-location" size={24} color={theme.colors.offWhite} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Friends Selector Modal */}
-      {showFriendsSelector && (
-        <View style={styles.friendsSelectorContainer}>
-          <View style={styles.friendsSelectorContent}>
-            <Text style={styles.friendsSelectorTitle}>View Friend's Places</Text>
-            <ScrollView style={styles.friendsList}>
-              <TouchableOpacity
-                style={[
-                  styles.friendItem,
-                  !selectedFriendFilter && styles.friendItemActive,
-                ]}
-                onPress={() => {
-                  setSelectedFriendFilter(null);
-                  setShowFriendsSelector(false);
-                  loadPlaces();
-                }}
-              >
-                <Icon name="public" size={20} color={theme.colors.midnightBlue} />
-                <Text style={styles.friendName}>All Places</Text>
-                {!selectedFriendFilter && (
-                  <Icon name="check" size={20} color={theme.colors.deepTeal} />
-                )}
-              </TouchableOpacity>
-              {friends.map((friendship) => (
-                <TouchableOpacity
-                  key={friendship.friend_id}
-                  style={[
-                    styles.friendItem,
-                    selectedFriendFilter === friendship.friend_id && styles.friendItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedFriendFilter(friendship.friend_id);
-                    setShowFriendsSelector(false);
-                    // Filter places by friend
-                  }}
-                >
-                  <View style={styles.friendAvatar}>
-                    <Text style={styles.friendAvatarText}>
-                      {friendship.friend?.email?.[0]?.toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.friendName}>{friendship.friend?.email}</Text>
-                  {selectedFriendFilter === friendship.friend_id && (
-                    <Icon name="check" size={20} color={theme.colors.deepTeal} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Syrena pick badge */}
+          {place.source === 'syrena' && (
+            <View style={styles.friendPickBadge}>
+              <MaterialCommunityIcons name="star-four-points" size={10} color={theme.colors.accent} />
+              <Text style={[styles.friendPickText, { color: theme.colors.accent }]} numberOfLines={1}>
+                Recommended by Syrena
+              </Text>
+            </View>
+          )}
         </View>
-      )}
 
-      <Modal
-        visible={showAddModal}
-        animationType="slide"
-        transparent={true}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Place</Text>
-                <TouchableOpacity onPress={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}>
-                  <Icon name="close" size={24} color={theme.colors.midnightBlue} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Loading State */}
-              {loadingPlaceDetails && (
-                <View style={styles.loadingPlaceDetails}>
-                  <ActivityIndicator color={theme.colors.midnightBlue} />
-                  <Text style={styles.loadingText}>Fetching place details...</Text>
-                </View>
-              )}
-
-              {/* Place Photos */}
-              {placeDetails?.photos && placeDetails.photos.length > 0 && (
-                <View style={styles.photosSection}>
-                  <Text style={styles.label}>Google Photos</Text>
-                  <View style={styles.photosGrid}>
-                    {placeDetails.photos.map((photo: string, index: number) => (
-                      <Image
-                        key={index}
-                        source={{ uri: photo }}
-                        style={styles.placePhoto}
-                        resizeMode="cover"
-                      />
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Price Level */}
-              {priceLevel > 0 && (
-                <View style={styles.priceLevelContainer}>
-                  <Text style={styles.label}>Price Level:</Text>
-                  <View style={styles.priceLevelIcons}>
-                    {[1, 2, 3, 4].map((level) => (
-                      <Text
-                        key={level}
-                        style={[
-                          styles.dollarSign,
-                          level <= priceLevel && styles.dollarSignActive
-                        ]}
-                      >
-                        $
-                      </Text>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Photo Upload */}
-              <View style={styles.photoSection}>
-                <Text style={styles.label}>Add Photo (Optional)</Text>
-                {selectedPhoto ? (
-                  <View style={styles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: selectedPhoto.uri }}
-                      style={styles.photoPreview}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.removePhotoButton}
-                      onPress={() => setSelectedPhoto(null)}
-                    >
-                      <Icon name="close" size={20} color="#FFF" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.addPhotoButton}
-                    onPress={pickImage}
-                    disabled={loading || uploadingPhoto}
-                  >
-                    <Icon name="add-a-photo" size={32} color={theme.colors.oceanGrey} />
-                    <Text style={styles.addPhotoText}>Tap to add photo</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Place name *"
-                value={placeName}
-                onChangeText={setPlaceName}
-                editable={!loading}
-              />
-
-              <Text style={styles.label}>Category *</Text>
-              <View style={styles.categoriesGrid}>
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory === cat.id && styles.categoryButtonActive
-                    ]}
-                    onPress={() => setSelectedCategory(cat.id)}
-                    disabled={loading}
-                  >
-                    <Icon
-                      name={cat.icon}
-                      size={20}
-                      color={selectedCategory === cat.id ? theme.colors.midnightBlue : theme.colors.oceanGrey}
-                    />
-                    <Text style={[
-                      styles.categoryText,
-                      selectedCategory === cat.id && styles.categoryTextActive
-                    ]}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Notes (optional)"
-                value={placeDescription}
-                onChangeText={setPlaceDescription}
-                multiline
-                numberOfLines={4}
-                editable={!loading}
-              />
-
-              <TouchableOpacity
-                style={[styles.saveButton, loading && styles.buttonDisabled]}
-                onPress={savePlace}
-                disabled={loading || !placeName || !selectedCategory}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save Place</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Place Details Modal */}
-      <Modal
-        visible={showDetailsModal}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Place Details</Text>
-              <TouchableOpacity onPress={() => {
-                setShowDetailsModal(false);
-                setSelectedPlace(null);
-              }}>
-                <Icon name="close" size={24} color={theme.colors.midnightBlue} />
-              </TouchableOpacity>
+        <View style={styles.placeCardContent}>
+          <Text style={styles.placeCardName} numberOfLines={1}>{place.name}</Text>
+          {place.city && (
+            <View style={styles.placeCardCity}>
+              <Icon name="place" size={10} color={theme.colors.textTertiary} />
+              <Text style={styles.placeCardCityText} numberOfLines={1}>{place.city}</Text>
             </View>
-
-            {selectedPlace && (
-              <View>
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  {/* User Photo */}
-                  {selectedPlace.photo_url && (
-                    <View style={styles.placePhotoContainer}>
-                      <Image
-                        source={{ uri: selectedPlace.photo_url }}
-                        style={styles.placePhotoLarge}
-                        resizeMode="cover"
-                      />
-                    </View>
-                  )}
-
-                  {/* Category Icon */}
-                  <View style={styles.detailsIconContainer}>
-                    <Icon
-                      name={getCategoryIcon(selectedPlace.category || 'other')}
-                      size={48}
-                      color={theme.colors.midnightBlue}
-                    />
-                  </View>
-
-                  {/* Place Name */}
-                  <Text style={styles.detailsTitle}>{selectedPlace.name}</Text>
-
-                  {/* Category */}
-                  <View style={styles.detailsRow}>
-                  <Icon name="category" size={18} color={theme.colors.oceanGrey} />
-                  <Text style={styles.detailsLabel}>Category:</Text>
-                  <Text style={styles.detailsValue}>
-                    {categories.find(c => c.id === selectedPlace.category)?.name || 'Other'}
-                  </Text>
-                </View>
-
-                {/* Visit Count */}
-                <View style={styles.detailsRow}>
-                  <Icon name="visibility" size={18} color={theme.colors.oceanGrey} />
-                  <Text style={styles.detailsLabel}>Visits:</Text>
-                  <Text style={styles.detailsValue}>{selectedPlace.visit_count || 0}</Text>
-                </View>
-
-                {/* Description */}
-                {selectedPlace.description && (
-                  <View style={styles.detailsSection}>
-                    <View style={styles.detailsRow}>
-                      <Icon name="notes" size={18} color={theme.colors.oceanGrey} />
-                      <Text style={styles.detailsLabel}>Notes:</Text>
-                    </View>
-                    <Text style={styles.detailsDescription}>
-                      {selectedPlace.description}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Location */}
-                <View style={styles.detailsRow}>
-                  <Icon name="place" size={18} color={theme.colors.oceanGrey} />
-                  <Text style={styles.detailsLabel}>Location:</Text>
-                  <Text style={styles.detailsValue}>
-                    {selectedPlace.lat.toFixed(6)}, {selectedPlace.lng.toFixed(6)}
-                  </Text>
-                </View>
-
-                {/* Mark as Visited Button */}
-                <TouchableOpacity
-                  style={styles.visitButton}
-                  onPress={() => markAsVisited(selectedPlace.id)}
-                >
-                  <Icon name="check-circle" size={20} color="#FFF" />
-                  <Text style={styles.visitButtonText}>Mark as Visited</Text>
-                </TouchableOpacity>
-
-                {/* Comments Section */}
-                <View style={styles.commentsSection}>
-                  <Text style={styles.commentsSectionTitle}>Comments</Text>
-
-                  {/* Add Comment */}
-                  <View style={styles.addCommentContainer}>
-                    <TextInput
-                      style={styles.commentInput}
-                      placeholder="Add a comment..."
-                      value={newComment}
-                      onChangeText={setNewComment}
-                      multiline
-                      editable={!submittingComment}
-                    />
-                    <TouchableOpacity
-                      style={[styles.submitCommentButton, submittingComment && styles.submitCommentButtonDisabled]}
-                      onPress={submitComment}
-                      disabled={submittingComment || !newComment.trim()}
-                    >
-                      {submittingComment ? (
-                        <ActivityIndicator color="#FFF" size="small" />
-                      ) : (
-                        <Icon name="send" size={18} color="#FFF" />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Comments List */}
-                  {comments.length > 0 ? (
-                    comments.map((comment) => (
-                      <View key={comment.id} style={styles.commentItem}>
-                        <View style={styles.commentHeader}>
-                          <Text style={styles.commentAuthor}>
-                            {comment.profiles?.display_name || comment.profiles?.username || 'User'}
-                          </Text>
-                          <Text style={styles.commentDate}>
-                            {new Date(comment.created_at).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        <Text style={styles.commentText}>{comment.comment}</Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.noCommentsText}>No comments yet. Be the first!</Text>
-                  )}
-                </View>
-
-                {/* Delete Button */}
-                <TouchableOpacity
-                  style={styles.deleteButtonLarge}
-                  onPress={() => confirmDeletePlace(selectedPlace.id, selectedPlace.name)}
-                >
-                  <Icon name="delete" size={20} color="#FFF" />
-                  <Text style={styles.deleteButtonText}>Delete Place</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-            )}
+          )}
+          <View style={styles.placeCardMeta}>
+            <Icon name={CATEGORY_ICONS[place.category || 'activity'] || 'place'} size={12} color={theme.colors.accent} />
+            <Text style={styles.placeCardCategory}>
+              {categories.find(c => c.id === place.category)?.name || 'Place'}
+            </Text>
           </View>
+          {(place.visit_count || 0) > 0 && (
+            <View style={styles.visitBadge}>
+              <Icon name="check-circle" size={10} color={theme.colors.success} />
+              <Text style={styles.visitText}>{place.visit_count} visits</Text>
+            </View>
+          )}
         </View>
-      </Modal>
+      </PressableScale>
+    );
+  };
 
-      {/* Profile Modal */}
-      <Modal
-        visible={showProfileModal}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Profile</Text>
-              <TouchableOpacity onPress={() => setShowProfileModal(false)}>
-                <Icon name="close" size={24} color={theme.colors.midnightBlue} />
+  // Full Map View
+  if (showFullMap) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => { setShowFullMap(false); setSearchedLocation(null); }} style={styles.backButton}>
+              <Icon name="arrow-back" size={24} color={theme.colors.primary} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Map</Text>
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setShowFriendsSelector(true)}
+              >
+                <Icon name="filter-list" size={24} color={theme.colors.primary} />
               </TouchableOpacity>
-            </View>
-
-            {user && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.profileContent}>
-                  <View style={styles.profileAvatarLarge}>
-                    <Text style={styles.profileAvatarTextLarge}>
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => setShowProfileModal(true)}
+              >
+                {userProfile?.avatar_url ? (
+                  <Image
+                    source={{ uri: userProfile.avatar_url }}
+                    style={styles.avatarImage}
+                  />
+                ) : user ? (
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
                       {user.email?.[0]?.toUpperCase()}
                     </Text>
                   </View>
-                  <Text style={styles.profileName}>
-                    {user.email?.split('@')[0]}
-                  </Text>
-                  <Text style={styles.profileEmail}>{user.email}</Text>
+                ) : (
+                  <Icon name="account-circle" size={32} color={theme.colors.primary} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
 
-                  {/* Odyssey Icon Picker */}
-                  <View style={styles.iconPickerSection}>
-                    <Text style={styles.iconPickerTitle}>Map Pin Icon</Text>
-                    <Text style={styles.iconPickerSubtitle}>
-                      Choose an Odyssey-themed icon for your map pin
-                    </Text>
-                    <View style={styles.iconGrid}>
-                      {['odyssey-1-circle.png', 'odyssey-2-circle.png', 'odyssey-3-circle.png', 'odyssey-4-circle.png', 'odyssey-5-circle.png', 'odyssey-6-circle.png', 'odyssey-7-circle.png', 'odyssey-8-circle.png', 'odyssey-9-circle.png', 'odyssey-10-circle.png', 'odyssey-11-circle.png', 'odyssey-12-circle.png'].map((icon) => {
-                        const iconMap: {[key: string]: any} = {
-                          'odyssey-1-circle.png': require('../assets/images/odyssey/odyssey-1-circle.png'),
-                          'odyssey-2-circle.png': require('../assets/images/odyssey/odyssey-2-circle.png'),
-                          'odyssey-3-circle.png': require('../assets/images/odyssey/odyssey-3-circle.png'),
-                          'odyssey-4-circle.png': require('../assets/images/odyssey/odyssey-4-circle.png'),
-                          'odyssey-5-circle.png': require('../assets/images/odyssey/odyssey-5-circle.png'),
-                          'odyssey-6-circle.png': require('../assets/images/odyssey/odyssey-6-circle.png'),
-                          'odyssey-7-circle.png': require('../assets/images/odyssey/odyssey-7-circle.png'),
-                          'odyssey-8-circle.png': require('../assets/images/odyssey/odyssey-8-circle.png'),
-                          'odyssey-9-circle.png': require('../assets/images/odyssey/odyssey-9-circle.png'),
-                          'odyssey-10-circle.png': require('../assets/images/odyssey/odyssey-10-circle.png'),
-                          'odyssey-11-circle.png': require('../assets/images/odyssey/odyssey-11-circle.png'),
-                          'odyssey-12-circle.png': require('../assets/images/odyssey/odyssey-12-circle.png'),
-                        };
+        <MapView
+          ref={mapRef}
+          style={styles.fullMap}
+          showsUserLocation
+          showsMyLocationButton={false}
+          showsPointsOfInterest={true}
+          onLongPress={handleMapPress}
+          onPoiClick={handlePoiClick}
+          initialRegion={{
+            latitude: userLocation?.latitude || 37.78825,
+            longitude: userLocation?.longitude || -122.4324,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        >
+          {places.map((place) => (
+            <PlaceMarker
+              key={place.id}
+              place={place}
+              currentUserId={user?.id}
+              onPress={handleMarkerPress}
+            />
+          ))}
+          {searchedLocation && (
+            <Marker
+              coordinate={{
+                latitude: searchedLocation.lat,
+                longitude: searchedLocation.lng,
+              }}
+              title={searchedLocation.name}
+              description="Tap to add this place"
+              pinColor={theme.colors.primary}
+              onCalloutPress={() => {
+                resetForm();
+                setNewPlace({ lat: searchedLocation.lat, lng: searchedLocation.lng });
+                setPlaceName(searchedLocation.name);
+                setShowAddModal(true);
+                fetchPlaceDetails(searchedLocation.lat, searchedLocation.lng);
+              }}
+            />
+          )}
+        </MapView>
 
-                        return (
-                          <TouchableOpacity
-                            key={icon}
-                            style={[
-                              styles.iconOption,
-                              odysseyIcon === icon && styles.iconOptionSelected,
-                            ]}
-                            onPress={() => saveOdysseyIcon(icon)}
-                            disabled={savingIcon}
-                          >
-                            <Image
-                              source={iconMap[icon]}
-                              style={styles.iconImage}
-                              resizeMode="contain"
-                            />
-                            {odysseyIcon === icon && (
-                              <View style={styles.iconCheckmark}>
-                                <Icon name="check" size={16} color={theme.colors.offWhite} />
-                              </View>
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
+        <View style={styles.floatingButtons}>
+          <TouchableOpacity
+            style={[styles.floatingButton, styles.locationButton]}
+            onPress={recenterToCurrentLocation}
+          >
+            <Icon name="my-location" size={24} color={theme.colors.surface} />
+          </TouchableOpacity>
+        </View>
 
-                  <TouchableOpacity
-                    style={styles.signOutButton}
-                    onPress={async () => {
-                      await supabase.auth.signOut();
-                      setShowProfileModal(false);
-                    }}
-                  >
-                    <Icon name="logout" size={20} color="#FFF" />
-                    <Text style={styles.signOutButtonText}>Sign Out</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+        {/* Modals */}
+        <FriendsSelectorModal
+          visible={showFriendsSelector}
+          onClose={() => setShowFriendsSelector(false)}
+          friends={friends}
+          selectedFriendFilters={selectedFriendFilters}
+          onFilterChange={handleFriendFilterChange}
+          onNavigateToFriends={() => {
+            setShowFriendsSelector(false);
+            navigation.navigate('Feed', { initialTab: 'search' });
+          }}
+          selectedCategories={selectedCategories}
+          onCategoryChange={handleCategoryChange}
+          selectedPriceLevels={selectedPriceLevels}
+          onPriceLevelChange={handlePriceLevelChange}
+          showSyrenaPicks={showSyrenaPicksFilter}
+          onSyrenaPicksChange={setShowSyrenaPicksFilter}
+        />
+
+        <AddPlaceModal
+          visible={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            resetForm();
+          }}
+          placeName={placeName}
+          setPlaceName={setPlaceName}
+          placeDescription={placeDescription}
+          setPlaceDescription={setPlaceDescription}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          loading={loading}
+          loadingPlaceDetails={loadingPlaceDetails}
+          placeDetails={placeDetails}
+          placeOwner={placeOwner}
+          priceLevel={priceLevel}
+          setPriceLevel={setPriceLevel}
+          selectedPhotos={selectedPhotos}
+          selectedGooglePhotoUrl={selectedGooglePhotoUrl}
+          onPickImage={pickImage}
+          onRemovePhoto={removePhoto}
+          onSelectGooglePhoto={setSelectedGooglePhotoUrl}
+          onSave={editingPlace ? updatePlace : savePlace}
+          uploadingPhoto={uploadingPhoto}
+          isEditing={!!editingPlace}
+          onClearSuggestion={clearGoogleSuggestion}
+          nearbyAlternatives={nearbyAlternatives}
+          showAlternatives={showAlternatives}
+          loadingAlternative={loadingAlternative}
+          onSelectAlternative={selectAlternativePlace}
+          onEnterCustomPlace={enterCustomPlace}
+        />
+
+        <PlaceDetailsModal
+          visible={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedPlace(null);
+          }}
+          place={selectedPlace}
+          placeOwner={placeOwner}
+          currentUserId={user?.id}
+          comments={comments}
+          visitors={visitors}
+          newComment={newComment}
+          setNewComment={setNewComment}
+          submittingComment={submittingComment}
+          onSubmitComment={submitComment}
+          onMarkAsVisited={markAsVisited}
+          onShare={sharePlace}
+          onSave={openInGoogleMaps}
+          onEdit={handleEditPlace}
+          onDelete={confirmDeletePlace}
+          onViewOnMap={(place) => {
+            setShowDetailsModal(false);
+            goToPlaceOnMap(place);
+          }}
+        />
+
+        <ProfileModal
+          visible={showProfileModal}
+          onClose={() => {
+            setShowProfileModal(false);
+            if (user) loadUserProfile(user.id);
+          }}
+          user={user}
+          onSignOut={handleSignOut}
+        />
+      </View>
+    );
+  }
+
+  // Landing Page View
+  return (
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>SYRENA</Text>
+            <View style={styles.logoUnderline} />
+          </View>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => setShowProfileModal(true)}
+          >
+            {userProfile?.avatar_url ? (
+              <Image
+                source={{ uri: userProfile.avatar_url }}
+                style={styles.avatarImage}
+              />
+            ) : user ? (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {user.email?.[0]?.toUpperCase()}
+                </Text>
+              </View>
+            ) : (
+              <Icon name="account-circle" size={32} color={theme.colors.primary} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Search Bar with Results */}
+        <View style={styles.searchWrapper}>
+          <View style={styles.searchContainer}>
+            <Icon name="search" size={20} style={[styles.searchIcon, { color: theme.colors.textTertiary }]} />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Search destinations..."
+              placeholderTextColor={theme.colors.textTertiary}
+              onChangeText={handleSearchTextChange}
+              selectionColor={theme.colors.accent}
+              cursorColor={theme.colors.accent}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {isSearching && <ActivityIndicator size="small" color={theme.colors.accent} />}
+            {searchQuery.length > 0 && !isSearching && (
+              <TouchableOpacity onPress={() => {
+                setSearchQuery('');
+                setShowSearchResults(false);
+                searchInputRef.current?.clear();
+              }}>
+                <Icon name="close" size={20} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
             )}
           </View>
+
+          {/* Search Results Dropdown */}
+          {showSearchResults && (
+            <View style={styles.searchResultsContainer}>
+            {searchResults.length > 0 ? (
+              <ScrollView style={styles.searchResults} keyboardShouldPersistTaps="handled">
+                {searchResults.map((result, index) => (
+                  <TouchableOpacity
+                    key={result.place_id}
+                    style={[
+                      styles.searchResultItem,
+                      index === searchResults.length - 1 && styles.searchResultItemLast,
+                    ]}
+                    onPress={() => handleSearchResultPress(result)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.searchResultIcon}>
+                      <Icon name="place" size={20} color={theme.colors.accent} />
+                    </View>
+                    <View style={styles.searchResultText}>
+                      <Text style={styles.searchResultMain} numberOfLines={1}>
+                        {result.structured_formatting.main_text}
+                      </Text>
+                      <Text style={styles.searchResultSecondary} numberOfLines={1}>
+                        {result.structured_formatting.secondary_text}
+                      </Text>
+                    </View>
+                    <Icon name="north-east" size={18} color={theme.colors.textTertiary} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.noResultsContainer}>
+                <Icon name="search-off" size={32} color={theme.colors.textTertiary} />
+                <Text style={styles.noResultsText}>No places found</Text>
+                <Text style={styles.noResultsSubtext}>Try a different search term</Text>
+              </View>
+            )}
+          </View>
+        )}
         </View>
-      </Modal>
+      </SafeAreaView>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Compact Map Preview - Elevated "Alive" Design */}
+        <TouchableOpacity
+          style={styles.mapPreviewContainer}
+          onPress={() => setShowFullMap(true)}
+          activeOpacity={0.95}
+        >
+          <MapView
+            ref={mapRef}
+            style={styles.mapPreview}
+            showsUserLocation
+            showsMyLocationButton={false}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            pitchEnabled={false}
+            rotateEnabled={false}
+            initialRegion={{
+              latitude: userLocation?.latitude || 37.78825,
+              longitude: userLocation?.longitude || -122.4324,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            }}
+          >
+            {allPlaces.map((place) => (
+              <PlaceMarker
+                key={place.id}
+                place={place}
+                currentUserId={user?.id}
+                onPress={() => {}}
+              />
+            ))}
+          </MapView>
+
+          {/* Gradient overlay - navy to transparent from bottom */}
+          <LinearGradient
+            colors={['transparent', 'rgba(30, 58, 95, 0.4)']}
+            locations={[0.4, 1]}
+            style={styles.mapGradientOverlay}
+          />
+
+          {/* Clean overlay with subtle chevron animation */}
+          <View style={styles.mapOverlayClean}>
+            <View style={styles.exploreButtonClean}>
+              <Icon name="explore" size={16} color={theme.colors.surface} />
+              <Text style={styles.exploreButtonText}>Explore Map</Text>
+              <Animated.View style={{ transform: [{ translateX: chevronAnim }] }}>
+                <Icon name="chevron-right" size={18} color={theme.colors.accent} />
+              </Animated.View>
+            </View>
+
+            <View style={styles.placeCountBadge}>
+              <Text style={styles.placeCountText}>{allPlaces.length} places</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Syrena Picks - Card Container */}
+        {syrenaPlaces.length > 0 && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="star-four-points" size={14} color={theme.colors.accent} />
+                  <Text style={styles.sectionTitle}>Recommended by Syrena</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={reloadSyrenaPicks}
+                  disabled={reloadingSyrenaPicks}
+                  style={{ padding: 4 }}
+                >
+                  {reloadingSyrenaPicks ? (
+                    <ActivityIndicator size="small" color={theme.colors.accent} />
+                  ) : (
+                    <Icon name="refresh" size={18} color={theme.colors.textTertiary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.sectionSubtitle}>Curated just for you</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sectionCardList}
+            >
+              {syrenaPlaces.map((place) => renderPlaceCard(place))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Friends' Picks - Card Container */}
+        {friendsPlaces.length > 0 && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
+              <Text style={styles.sectionTitle}>Friends' Picks</Text>
+              <Text style={styles.sectionSubtitle}>Recommendations from your circle</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sectionCardList}
+            >
+              {friendsPlaces.map((place) => renderPlaceCard(place))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Recent Discoveries - Card Container */}
+        {recentPlaces.length > 0 && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
+              <Text style={styles.sectionTitle}>Recent Discoveries</Text>
+              <Text style={styles.sectionSubtitle}>Latest additions to explore</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sectionCardList}
+            >
+              {recentPlaces.map((place) => renderPlaceCard(place))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Empty State */}
+        {allPlaces.length === 0 && (
+          <View style={styles.emptyState}>
+            <Icon name="explore" size={64} color={theme.colors.border} />
+            <Text style={styles.emptyTitle}>Start Your Journey</Text>
+            <Text style={styles.emptyText}>
+              Tap the map above to explore and long-press to add your favorite places
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        visible={showProfileModal}
+        onClose={() => {
+          setShowProfileModal(false);
+          // Refresh profile in case avatar was updated
+          if (user) loadUserProfile(user.id);
+        }}
+        user={user}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Place Details Modal */}
+      <PlaceDetailsModal
+        visible={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedPlace(null);
+        }}
+        place={selectedPlace}
+        placeOwner={placeOwner}
+        currentUserId={user?.id}
+        comments={comments}
+        visitors={visitors}
+        newComment={newComment}
+        setNewComment={setNewComment}
+        submittingComment={submittingComment}
+        onSubmitComment={submitComment}
+        onMarkAsVisited={markAsVisited}
+        onShare={sharePlace}
+        onSave={openInGoogleMaps}
+        onEdit={handleEditPlace}
+        onDelete={confirmDeletePlace}
+        onViewOnMap={(place) => {
+          setShowDetailsModal(false);
+          goToPlaceOnMap(place);
+        }}
+      />
     </View>
   );
 }
@@ -1223,445 +2025,409 @@ export default function ExploreScreen({ route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.cream,
+    backgroundColor: theme.colors.background,
   },
   headerSafeArea: {
-    backgroundColor: theme.colors.offWhite,
+    backgroundColor: theme.colors.surface,
+    zIndex: 100,
   },
   header: {
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
-    backgroundColor: theme.colors.offWhite,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.seaMist,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    height: 56,
+    // No border - clean header
+  },
+  logoContainer: {
+    alignItems: 'flex-start',
+  },
+  logoText: {
+    fontSize: theme.typography.sizes.xl,
+    fontFamily: theme.typography.fonts.heading.regular,
+    fontWeight: '600',
+    color: theme.colors.primary,
+    letterSpacing: 4,
+  },
+  logoUnderline: {
+    width: 40,
+    height: 2,
+    backgroundColor: theme.colors.accent,
+    marginTop: 4,
+  },
+  backButton: {
+    padding: 4,
   },
   title: {
-    fontSize: theme.fontSize.xxl,
-    fontFamily: 'Crimson Pro',
+    fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fonts.heading.regular,
     fontWeight: '600',
-    color: theme.colors.midnightBlue,
+    color: theme.colors.primary,
+    letterSpacing: 2,
   },
-  searchButton: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  filterButton: {
     padding: 4,
+  },
+  profileButton: {
+    padding: 4,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+  },
+  avatarText: {
+    color: theme.colors.surface,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: '600',
+  },
+  searchWrapper: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    zIndex: 1000,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.seaMist,
-    backgroundColor: theme.colors.offWhite,
+    paddingHorizontal: theme.spacing.lg,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14, // radii.input
+    borderWidth: 1,
+    borderColor: 'rgba(13, 38, 76, 0.08)', // borders.light
+    // No shadow on inputs
   },
   searchIcon: {
     marginRight: theme.spacing.sm,
   },
   searchInput: {
     flex: 1,
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.midnightBlue,
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fonts.body.regular,
+    color: theme.colors.textPrimary,
+    paddingVertical: theme.spacing.xs,
   },
-  helpBanner: {
+  searchResultsContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    marginTop: theme.spacing.xs,
+    maxHeight: 300,
+    ...theme.shadows.lg,
+  },
+  searchResults: {
+    padding: theme.spacing.sm,
+  },
+  searchResultItem: {
     flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    gap: theme.spacing.md,
+  },
+  searchResultItemLast: {
+    borderBottomWidth: 0,
+  },
+  searchResultIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.accentSubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultMain: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fonts.body.medium,
+    color: theme.colors.textPrimary,
+  },
+  searchResultSecondary: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.regular,
+    color: theme.colors.textTertiary,
+    marginTop: 2,
+  },
+  noResultsContainer: {
+    padding: theme.spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
-    backgroundColor: theme.colors.aquaMist,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.seaMist,
-    gap: theme.spacing.sm,
   },
-  helpText: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.oceanGrey,
-  },
-  map: {
-    flex: 1,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(61, 85, 104, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: theme.colors.offWhite,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
-    paddingBottom: 40,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  modalTitle: {
-    fontSize: theme.fontSize.xl,
-    fontFamily: 'Crimson Pro',
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-  },
-  label: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.sm,
+  noResultsText: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fonts.body.medium,
+    color: theme.colors.textSecondary,
     marginTop: theme.spacing.sm,
   },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.sans.regular,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-    color: theme.colors.midnightBlue,
+  noResultsSubtext: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.regular,
+    color: theme.colors.textTertiary,
+    marginTop: 4,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
+  content: {
+    flex: 1,
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+  mapPreviewContainer: {
+    height: 180,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    borderRadius: theme.borderRadius.card,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.borderSubtle,
   },
-  categoryButton: {
+  mapPreview: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  // Gradient overlay for depth - navy to transparent from bottom
+  mapGradientOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '50%',
+  },
+  // Clean overlay with button top-left and badge bottom-right
+  mapOverlayClean: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    padding: theme.spacing.md,
+  },
+  exploreButtonClean: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-    backgroundColor: '#FFFFFF',
+    borderRadius: theme.borderRadius.button,
+    gap: theme.spacing.xs,
+    ...theme.shadows.xs,
   },
-  categoryButtonActive: {
-    borderColor: theme.colors.midnightBlue,
-    backgroundColor: theme.colors.aquaMist,
+  exploreButtonText: {
+    color: theme.colors.surface,
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.medium,
   },
-  categoryText: {
-    fontSize: theme.fontSize.xs,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.oceanGrey,
-    fontWeight: '500',
+  placeCountBadge: {
+    alignSelf: 'flex-end',
+    backgroundColor: theme.colors.accent,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.button,
   },
-  categoryTextActive: {
-    color: theme.colors.midnightBlue,
-    fontWeight: '600',
+  placeCountText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.semibold,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+  // Section Card Container - rounded container instead of dividers
+  sectionCard: {
+    marginTop: theme.spacing.lg,
+    marginHorizontal: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.card,
+    padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
-  saveButton: {
-    backgroundColor: theme.colors.midnightBlue,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: theme.spacing.sm,
+  sectionCardHeader: {
+    marginBottom: 12, // Header block → content: 12px
   },
-  buttonDisabled: {
-    opacity: 0.5,
+  sectionCardList: {
+    gap: theme.spacing.md,
   },
-  saveButtonText: {
-    color: theme.colors.cream,
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.sans.regular,
-    fontWeight: '600',
+  // Legacy section styles (kept for backwards compatibility)
+  section: {
+    marginTop: theme.spacing.xl,
   },
-  detailsIconContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.seaMist,
-    marginBottom: theme.spacing.lg,
-  },
-  detailsTitle: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.xl,
-    textAlign: 'center',
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  sectionHeader: {
     marginBottom: theme.spacing.md,
-    gap: theme.spacing.sm,
   },
-  detailsLabel: {
-    fontSize: theme.fontSize.sm,
+  sectionTitle: {
+    fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fonts.heading.regular,
     fontWeight: '600',
-    color: theme.colors.midnightBlue,
+    color: theme.colors.primary,
+    letterSpacing: 0.2,
   },
-  detailsValue: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.oceanGrey,
-    flex: 1,
+  sectionSubtitle: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.regular,
+    color: theme.colors.textTertiary,
+    marginTop: 4, // Header → subheader: 4-6px
   },
-  ratingDisplay: {
+  seeAllText: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.medium,
+    color: theme.colors.accent,
+  },
+  horizontalList: {
+    paddingHorizontal: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  placeCard: {
+    width: 160,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+    ...theme.shadows.xs,
+  },
+  placeCardLarge: {
+    width: 200,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 100,
+    overflow: 'hidden',
+    borderTopLeftRadius: theme.borderRadius.lg,
+    borderTopRightRadius: theme.borderRadius.lg,
+  },
+  placeImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: theme.colors.background,
+  },
+  imageGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  warmOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 248, 240, 0.08)', // Warm sepia tint
+  },
+  friendPickBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.button,
+    gap: 4,
+    ...theme.shadows.xs,
+  },
+  friendAvatar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+  },
+  friendAvatarPlaceholder: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendPickText: {
+    fontSize: 9,
+    fontFamily: theme.typography.fonts.body.medium,
+    color: theme.colors.textSecondary,
+    maxWidth: 60,
+  },
+  placeholderImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeCardContent: {
+    padding: theme.spacing.sm,
+  },
+  placeCardName: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.body.semibold,
+    color: theme.colors.textPrimary,
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  placeCardCity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginBottom: 4,
+  },
+  placeCardCityText: {
+    fontSize: theme.typography.sizes.xs,
+    color: theme.colors.textTertiary,
+    fontFamily: theme.typography.fonts.body.regular,
+  },
+  placeCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
-  detailsSection: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
+  placeCardCategory: {
+    fontSize: 10,
+    fontFamily: theme.typography.fonts.body.medium,
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    opacity: 0.85,
   },
-  detailsDescription: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.oceanGrey,
-    lineHeight: 20,
-    marginTop: theme.spacing.sm,
-    paddingLeft: 26,
-  },
-  visitButton: {
+  visitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  visitText: {
+    fontSize: theme.typography.sizes.xxs,
+    fontFamily: theme.typography.fonts.body.regular,
+    color: theme.colors.success,
+  },
+  emptyState: {
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.success || '#10B981',
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
+    paddingVertical: theme.spacing.huge,
+    paddingHorizontal: theme.spacing.xl,
+  },
+  emptyTitle: {
+    fontSize: theme.typography.sizes.xl,
+    fontFamily: theme.typography.fonts.heading.regular,
+    color: theme.colors.primary,
     marginTop: theme.spacing.lg,
-  },
-  visitButtonText: {
-    color: '#FFF',
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-  },
-  commentsSection: {
-    marginTop: theme.spacing.xxl,
-    paddingTop: theme.spacing.lg,
-    borderTopWidth: 2,
-    borderTopColor: theme.colors.seaMist,
-  },
-  commentsSectionTitle: {
-    fontSize: theme.fontSize.lg,
-    fontFamily: theme.fonts.display.regular,
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.md,
-    fontWeight: '600',
-  },
-  addCommentContainer: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-  },
-  commentInput: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontFamily: theme.fonts.sans.regular,
-    fontSize: theme.fontSize.md,
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  submitCommentButton: {
-    backgroundColor: theme.colors.midnightBlue,
-    borderRadius: theme.borderRadius.md,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitCommentButtonDisabled: {
-    opacity: 0.5,
-  },
-  commentItem: {
-    backgroundColor: '#FFF',
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: theme.spacing.sm,
   },
-  commentAuthor: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-  },
-  commentDate: {
-    fontSize: theme.fontSize.xs,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.oceanGrey,
-  },
-  commentText: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.earthBrown,
-  },
-  noCommentsText: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.oceanGrey,
-    fontStyle: 'italic',
+  emptyText: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fonts.body.regular,
+    color: theme.colors.textTertiary,
     textAlign: 'center',
-    paddingVertical: theme.spacing.lg,
+    lineHeight: 22,
   },
-  deleteButtonLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.error,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
-    marginTop: theme.spacing.xxl,
-  },
-  deleteButtonText: {
-    color: '#FFF',
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  profileButton: {
-    padding: 4,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.midnightBlue,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.colors.deepTeal,
-    position: 'relative',
-  },
-  avatarText: {
-    color: theme.colors.cream,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-  },
-  statusDot: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.aquaMist,
-    borderWidth: 2,
-    borderColor: theme.colors.offWhite,
-  },
-  profileContent: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
-  },
-  profileAvatarLarge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.midnightBlue,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: theme.colors.deepTeal,
-    marginBottom: theme.spacing.lg,
-  },
-  profileAvatarTextLarge: {
-    color: theme.colors.cream,
-    fontSize: theme.fontSize.xxl,
-    fontWeight: '600',
-  },
-  profileName: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.xs,
-  },
-  profileEmail: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.oceanGrey,
-    fontStyle: 'italic',
-    marginBottom: theme.spacing.xxl,
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.oceanDepth,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
-    paddingHorizontal: theme.spacing.xxl,
-    minWidth: 200,
-  },
-  signOutButtonText: {
-    color: '#FFF',
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-  },
-  loadingPlaceDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.lg,
-    gap: theme.spacing.md,
-  },
-  photosSection: {
-    marginBottom: theme.spacing.lg,
-  },
-  photosGrid: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-  },
-  placePhoto: {
-    width: 100,
+  bottomPadding: {
     height: 100,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
   },
-  priceLevelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-  },
-  priceLevelIcons: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  dollarSign: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.seaMist,
-    fontWeight: '600',
-  },
-  dollarSignActive: {
-    color: theme.colors.sirenGold,
+  fullMap: {
+    flex: 1,
   },
   floatingButtons: {
     position: 'absolute',
@@ -1673,208 +2439,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: theme.colors.deepTeal,
+    backgroundColor: theme.colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: theme.colors.oceanDepth,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...theme.shadows.lg,
   },
   locationButton: {
-    backgroundColor: theme.colors.midnightBlue,
-  },
-  filterActiveDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.sirenGold,
-    borderWidth: 2,
-    borderColor: theme.colors.offWhite,
-  },
-  friendsSelectorContainer: {
-    position: 'absolute',
-    right: theme.spacing.xl + 70,
-    bottom: theme.spacing.xxxl + 80,
-    width: 280,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  friendsSelectorContent: {
-    backgroundColor: theme.colors.offWhite,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    maxHeight: 350,
-    shadowColor: theme.colors.oceanDepth,
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  friendsSelectorTitle: {
-    fontSize: theme.fontSize.lg,
-    fontFamily: 'Crimson Pro',
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.md,
-  },
-  friendsList: {
-    maxHeight: 280,
-  },
-  friendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.sm,
-    gap: theme.spacing.md,
-    backgroundColor: theme.colors.cream,
-  },
-  friendItemActive: {
-    backgroundColor: theme.colors.seaMist,
-    borderWidth: 2,
-    borderColor: theme.colors.deepTeal,
-  },
-  friendAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.midnightBlue,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  friendAvatarText: {
-    color: theme.colors.offWhite,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-  },
-  friendName: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.midnightBlue,
-  },
-  iconPickerSection: {
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
-    paddingTop: theme.spacing.xl,
-    borderTopWidth: 2,
-    borderTopColor: theme.colors.seaMist,
-  },
-  iconPickerTitle: {
-    fontSize: theme.fontSize.lg,
-    fontFamily: 'Crimson Pro',
-    fontWeight: '600',
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.sm,
-  },
-  iconPickerSubtitle: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
-    color: theme.colors.oceanGrey,
-    marginBottom: theme.spacing.lg,
-  },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.md,
-    justifyContent: 'center',
-  },
-  iconOption: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: 'transparent',
-  },
-  iconOptionSelected: {
-    shadowColor: theme.colors.oceanDepth,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 10,
-    transform: [{ scale: 1.1 }],
-  },
-  iconImage: {
-    width: '100%',
-    height: '100%',
-  },
-  iconCheckmark: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(61, 85, 104, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 40,
-  },
-  photoSection: {
-    marginBottom: theme.spacing.lg,
-  },
-  addPhotoButton: {
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-    borderStyle: 'dashed',
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.cream,
-  },
-  addPhotoText: {
-    marginTop: theme.spacing.sm,
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.oceanGrey,
-    fontFamily: theme.fonts.sans.regular,
-  },
-  photoPreviewContainer: {
-    position: 'relative',
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-  },
-  photoPreview: {
-    width: '100%',
-    height: 200,
-    backgroundColor: theme.colors.cream,
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: theme.spacing.sm,
-    right: theme.spacing.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placePhotoContainer: {
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-  },
-  placePhotoLarge: {
-    width: '100%',
-    height: 250,
-    backgroundColor: theme.colors.cream,
+    backgroundColor: theme.colors.primary,
   },
 });

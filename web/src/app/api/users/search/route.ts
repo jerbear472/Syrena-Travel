@@ -19,11 +19,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Query must be at least 2 characters' }, { status: 400 });
     }
 
-    // Search for users by username or display_name
+    // Sanitize query - remove special characters that could be used for injection
+    // Keep only alphanumeric, spaces, and common name characters
+    const sanitizedQuery = query.replace(/[^a-zA-Z0-9\s._-]/g, '').trim();
+    if (sanitizedQuery.length < 2) {
+      return NextResponse.json({ error: 'Invalid search query' }, { status: 400 });
+    }
+
+    // Limit query length
+    if (sanitizedQuery.length > 50) {
+      return NextResponse.json({ error: 'Query too long' }, { status: 400 });
+    }
+
+    // Search for users by username or display_name using sanitized input
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('id, username, display_name, avatar_url')
-      .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+      .or(`username.ilike.%${sanitizedQuery}%,display_name.ilike.%${sanitizedQuery}%`)
       .neq('id', user.id) // Exclude current user
       .limit(20);
 

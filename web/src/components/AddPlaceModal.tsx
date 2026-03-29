@@ -181,8 +181,8 @@ export default function AddPlaceModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
-      <div className="modal-clean w-full max-w-lg my-8 animate-scale-in max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="modal-clean w-full max-w-lg my-8 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="relative p-6 pb-4 border-b border-gray-200">
           <button
@@ -206,7 +206,7 @@ export default function AddPlaceModal({
               ) : (
                 <div className="bg-cream rounded-xl border-2 border-warm-stone overflow-hidden w-full h-full flex items-center justify-center">
                   <Image
-                    src="/bluelyre.png"
+                    src="/SYRENABAROQUE.png"
                     alt="Syrena"
                     width={64}
                     height={64}

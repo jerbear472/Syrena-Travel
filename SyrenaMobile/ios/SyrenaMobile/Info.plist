@@ -20,23 +20,57 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.syrena.travel</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>syrena</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GMSApiKey</key>
+	<string>AIzaSyArP42EedqSSuYhKBA5fsPQPSdGyWxFtc4</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Syrena uses your camera to take photos of places you recommend. For example, when adding a new restaurant to your travel map, you can capture a photo to help friends recognize the location. Photos are uploaded to your profile and shared only with friends you choose.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Syrena needs your location to show nearby places and allow you to save locations on the map</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Syrena needs your location to show nearby places and allow you to save locations on the map</string>
-	<key>GMSApiKey</key>
-	<string>AIzaSyArP42EedqSSuYhKBA5fsPQPSdGyWxFtc4</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Syrena needs permission to save photos to your library</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Syrena needs access to your photo library to select photos of places</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Lora-Regular.ttf</string>
+		<string>Lora-Italic.ttf</string>
+		<string>CrimsonPro-Regular.ttf</string>
+		<string>CrimsonPro-Italic.ttf</string>
+		<string>Inter-Regular.ttf</string>
+		<string>MaterialIcons.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -51,14 +85,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>UIAppFonts</key>
-	<array>
-		<string>Lora-Regular.ttf</string>
-		<string>Lora-Italic.ttf</string>
-		<string>CrimsonPro-Regular.ttf</string>
-		<string>CrimsonPro-Italic.ttf</string>
-		<string>Inter-Regular.ttf</string>
-		<string>MaterialIcons.ttf</string>
-	</array>
 </dict>
 </plist>

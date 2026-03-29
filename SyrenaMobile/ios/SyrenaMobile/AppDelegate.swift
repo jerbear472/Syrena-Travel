@@ -45,4 +45,8 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif
   }
+
+  override func newArchEnabled() -> Bool {
+    return true
+  }
 }

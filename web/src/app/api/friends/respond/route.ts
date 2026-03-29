@@ -14,9 +14,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { friendship_id, action } = body;
 
-    if (!friendship_id || !action) {
+    // Validate friendship_id is a valid UUID format
+    if (!friendship_id || typeof friendship_id !== 'string') {
       return NextResponse.json({
-        error: 'friendship_id and action are required'
+        error: 'friendship_id is required'
+      }, { status: 400 });
+    }
+
+    // UUID v4 format validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(friendship_id)) {
+      return NextResponse.json({
+        error: 'Invalid friendship_id format'
+      }, { status: 400 });
+    }
+
+    if (!action || typeof action !== 'string') {
+      return NextResponse.json({
+        error: 'action is required'
       }, { status: 400 });
     }
 

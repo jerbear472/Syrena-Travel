@@ -106,9 +106,12 @@
     border: 1.5px solid var(--color-sea-mist);
     border-radius: var(--radius-lg);
     padding: var(--space-lg);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.3s ease;
     box-shadow: var(--shadow-sm);
     position: relative;
+    will-change: transform;
   }
 
   .card-minimal::before {
@@ -122,17 +125,22 @@
     pointer-events: none;
     border-radius: var(--radius-lg);
     opacity: 0;
-    transition: opacity 0.25s ease;
+    transition: opacity 0.4s ease;
   }
 
   .card-minimal:hover {
     border-color: var(--color-stone-blue);
-    box-shadow: var(--shadow-ocean);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 25px -5px rgba(42, 63, 80, 0.15), 0 4px 10px -3px rgba(42, 63, 80, 0.08);
+    transform: translateY(-2px);
   }
 
   .card-minimal:hover::before {
     opacity: 1;
+  }
+
+  .card-minimal:active {
+    transform: translateY(0px);
+    transition-duration: 0.15s;
   }
 
   /* Oceanic Button Styles */
@@ -149,7 +157,6 @@
     padding: 0.875rem 1.875rem !important;
     min-height: 50px !important;
     border-radius: var(--radius-md);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     border: none;
     outline: none;
@@ -158,6 +165,7 @@
     line-height: 1.2;
     text-align: center;
     letter-spacing: 0.01em;
+    will-change: transform;
   }
 
   .btn svg,
@@ -171,17 +179,21 @@
     color: var(--color-cream);
     box-shadow: var(--shadow-sm);
     border: 1.5px solid var(--color-deep-teal);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.25s ease;
   }
 
   .btn-primary:hover {
     background: var(--color-deep-teal);
-    box-shadow: var(--shadow-ocean);
+    box-shadow: 0 6px 20px -4px rgba(61, 85, 104, 0.4);
     transform: translateY(-2px);
   }
 
   .btn-primary:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.98);
     box-shadow: var(--shadow-sm);
+    transition-duration: 0.1s;
   }
 
   .btn-secondary {
@@ -191,10 +203,23 @@
     box-shadow: var(--shadow-sm);
   }
 
+  .btn-secondary {
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.25s ease,
+                border-color 0.25s ease;
+  }
+
   .btn-secondary:hover {
     background: var(--color-sea-mist);
     border-color: var(--color-driftwood);
     box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:active {
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.1s;
   }
 
   .btn-ghost {
@@ -215,7 +240,10 @@
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-ocean-depth);
-    transition: all 0.2s ease;
+    transition: background-color 0.25s ease,
+                color 0.25s ease,
+                border-color 0.25s ease,
+                transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -226,6 +254,11 @@
     background: var(--color-sea-mist);
     color: var(--color-charcoal-blue);
     border-color: var(--color-stone-blue);
+  }
+
+  .btn-icon:active {
+    transform: scale(0.92);
+    transition-duration: 0.1s;
   }
 
   /* Oceanic Input Styles */
@@ -239,7 +272,9 @@
     font-family: 'Lora', serif;
     font-size: var(--text-sm);
     color: var(--color-charcoal-blue);
-    transition: all 0.25s ease;
+    transition: border-color 0.3s ease,
+                background-color 0.3s ease,
+                box-shadow 0.3s ease;
     box-shadow: inset 0 1px 3px rgba(42, 63, 80, 0.06);
   }
 
@@ -247,7 +282,7 @@
     outline: none;
     border-color: var(--color-deep-teal);
     background: var(--color-cream);
-    box-shadow: 0 0 0 3px rgba(89, 115, 135, 0.08), inset 0 1px 3px rgba(42, 63, 80, 0.06);
+    box-shadow: 0 0 0 4px rgba(89, 115, 135, 0.1), inset 0 1px 3px rgba(42, 63, 80, 0.04);
   }
 
   .input-clean::placeholder {
@@ -313,26 +348,37 @@
     font-size: var(--text-sm);
     font-weight: 500;
     color: var(--color-ocean-depth);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.3s ease,
+                color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.3s ease,
+                transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.875rem;
     border: 1.5px solid transparent;
+    position: relative;
   }
 
   .nav-item-clean:hover {
     background: var(--color-sea-mist);
     color: var(--color-ocean-depth);
     border-color: var(--color-stone-blue);
-    transform: translateX(2px);
+    transform: translateX(3px);
+  }
+
+  .nav-item-clean:active {
+    transform: translateX(1px) scale(0.98);
+    transition-duration: 0.1s;
   }
 
   .nav-item-clean.active {
     background: var(--color-midnight-blue);
     color: var(--color-cream);
     border-color: var(--color-deep-teal);
-    box-shadow: var(--shadow-ocean);
+    box-shadow: 0 4px 12px -2px rgba(61, 85, 104, 0.3);
+    transform: translateX(0);
   }
 
   /* Oceanic Sidebar Styles */
@@ -413,32 +459,52 @@
 
   /* Oceanic Modal Backdrop */
   .modal-backdrop-clean {
-    background: rgba(31, 45, 58, 0.65);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(31, 45, 58, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: modal-backdrop-in 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) both;
   }
 
   /* Oceanic Modal */
   .modal-clean {
     background: var(--color-off-white);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-xl);
+    box-shadow: 0 25px 60px -12px rgba(31, 45, 58, 0.35), 0 0 0 1px rgba(223, 230, 237, 0.5);
     overflow: hidden;
-    border: 2px solid var(--color-sea-mist);
+    border: 1.5px solid var(--color-sea-mist);
+    animation: modal-content-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.05s;
   }
 
   /* Loading Spinner - Ocean Wave */
   .spinner-minimal {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border: 2.5px solid var(--color-sea-mist);
     border-top-color: var(--color-deep-teal);
+    border-right-color: var(--color-deep-teal);
     border-radius: 50%;
-    animation: spin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation: spin 0.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   }
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* Elegant page loader */
+  .page-loader {
+    animation: fade-in 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  }
+
+  .page-loader .spinner-minimal {
+    width: 28px;
+    height: 28px;
+  }
+
+  .page-loader p {
+    animation: fade-in 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+    animation-delay: 0.2s;
+    opacity: 0;
   }
 
   /* Skeleton Loader - Ocean Waves */
@@ -473,16 +539,22 @@
     outline-offset: 2px;
   }
 
-  /* Smooth Animations */
+  /* ===== Smooth, Purposeful Animations ===== */
+
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
   }
 
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
   @keyframes slide-up {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(16px);
     }
     to {
       opacity: 1;
@@ -490,28 +562,147 @@
     }
   }
 
+  @keyframes slide-down-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
   @keyframes scale-in {
     from {
       opacity: 0;
-      transform: scale(0.95);
+      transform: scale(0.92) translateY(8px);
     }
     to {
       opacity: 1;
-      transform: scale(1);
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes modal-backdrop-in {
+    from {
+      opacity: 0;
+      backdrop-filter: blur(0px);
+    }
+    to {
+      opacity: 1;
+      backdrop-filter: blur(6px);
+    }
+  }
+
+  @keyframes modal-content-in {
+    from {
+      opacity: 0;
+      transform: scale(0.88) translateY(20px);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.01) translateY(-2px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Tab content transition */
+  @keyframes tab-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Staggered list items */
+  @keyframes stagger-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Gentle pulse for loading states */
+  @keyframes gentle-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Slide in from right for sidebar content */
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
     }
   }
 
   .animate-fade-in {
-    animation: fade-in 0.2s ease-out;
+    animation: fade-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  }
+
+  .animate-fade-out {
+    animation: fade-out 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) both;
   }
 
   .animate-slide-up {
-    animation: slide-up 0.2s ease-out;
+    animation: slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .animate-scale-in {
-    animation: scale-in 0.15s ease-out;
+    animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  .animate-modal-backdrop {
+    animation: modal-backdrop-in 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  }
+
+  .animate-modal-content {
+    animation: modal-content-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.05s;
+  }
+
+  .animate-tab-enter {
+    animation: tab-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-gentle-pulse {
+    animation: gentle-pulse 2s ease-in-out infinite;
+  }
+
+  /* Stagger children animations */
+  .stagger-children > * {
+    animation: stagger-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0.03s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.06s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.09s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.12s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.15s; }
+  .stagger-children > *:nth-child(6) { animation-delay: 0.18s; }
+  .stagger-children > *:nth-child(7) { animation-delay: 0.21s; }
+  .stagger-children > *:nth-child(8) { animation-delay: 0.24s; }
+  .stagger-children > *:nth-child(9) { animation-delay: 0.27s; }
+  .stagger-children > *:nth-child(10) { animation-delay: 0.30s; }
 
   /* Animated gradient for SYRENA text - Siren's Call */
   .animate-gradient {
@@ -637,4 +828,22 @@
   .stack-md { gap: var(--space-md); }
   .stack-lg { gap: var(--space-lg); }
   .stack-xl { gap: var(--space-xl); }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Respect reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

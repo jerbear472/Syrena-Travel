@@ -61,8 +61,8 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="modal-clean w-full max-w-md animate-scale-in">
+    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4">
+      <div className="modal-clean w-full max-w-md">
         {/* Header */}
         <div className="relative p-6 pb-4 border-b-2 border-sand">
           <button
@@ -76,7 +76,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
           <div className="text-center">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-cream rounded-xl border-2 border-warm-stone overflow-hidden">
               <Image
-                src="/bluelyre.png"
+                src="/SYRENABAROQUE.png"
                 alt="Syrena"
                 width={64}
                 height={64}

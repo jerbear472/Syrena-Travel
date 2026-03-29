@@ -7,23 +7,36 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0C80B921A6F3F58F76C31292 /* libPods-SyrenaMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-SyrenaMobile.a */; };
+		0B55DEED5BCD469FB2B117E0 /* Lora-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4F5B07FB13134403A595C57F /* Lora-Italic.ttf */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		23F0C3D9AA1E49709AC4B589 /* Inter-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4DD0B78CC4BF4F048AA3C890 /* Inter-Regular.ttf */; };
+		326FDE359DD74E9ABB79F92D /* Lora-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0754E0EFDBC04F9B814D16E0 /* Lora-Regular.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		B2911632C54436DAD8287170 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79435C31EF2C19AAA8AC5378 /* ExpoModulesProvider.swift */; };
+		BADC1DE706404E6F8FF0125D /* CrimsonPro-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AADEB477E2CB4F9A917DD708 /* CrimsonPro-Italic.ttf */; };
+		C7FA2A325490660CF742B00E /* libPods-SyrenaMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EAC1E0B91B9F189CC9584AEB /* libPods-SyrenaMobile.a */; };
 		E0C2FD3A8F33ABABF50C5C02 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		E6C0719CFA29473BB0979FF8 /* CrimsonPro-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 65CB217D812942988051FE9C /* CrimsonPro-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0754E0EFDBC04F9B814D16E0 /* Lora-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lora-Regular.ttf"; path = "../src/assets/fonts/Lora-Regular.ttf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* SyrenaMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SyrenaMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SyrenaMobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SyrenaMobile/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = SyrenaMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		3B4392A12AC88292D35C810B /* Pods-SyrenaMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyrenaMobile.debug.xcconfig"; path = "Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile.debug.xcconfig"; sourceTree = "<group>"; };
-		5709B34CF0A7D63546082F79 /* Pods-SyrenaMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyrenaMobile.release.xcconfig"; path = "Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile.release.xcconfig"; sourceTree = "<group>"; };
-		5DCACB8F33CDC322A6C60F78 /* libPods-SyrenaMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SyrenaMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4DD0B78CC4BF4F048AA3C890 /* Inter-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Inter-Regular.ttf"; path = "../src/assets/fonts/Inter-Regular.ttf"; sourceTree = "<group>"; };
+		4F5B07FB13134403A595C57F /* Lora-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lora-Italic.ttf"; path = "../src/assets/fonts/Lora-Italic.ttf"; sourceTree = "<group>"; };
+		50E677C1507AA71858ABDFDA /* Pods-SyrenaMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyrenaMobile.debug.xcconfig"; path = "Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile.debug.xcconfig"; sourceTree = "<group>"; };
+		65CB217D812942988051FE9C /* CrimsonPro-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "CrimsonPro-Regular.ttf"; path = "../src/assets/fonts/CrimsonPro-Regular.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = SyrenaMobile/AppDelegate.swift; sourceTree = "<group>"; };
+		79435C31EF2C19AAA8AC5378 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-SyrenaMobile/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = SyrenaMobile/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		AADEB477E2CB4F9A917DD708 /* CrimsonPro-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "CrimsonPro-Italic.ttf"; path = "../src/assets/fonts/CrimsonPro-Italic.ttf"; sourceTree = "<group>"; };
+		E81E98992F34F382001D18F8 /* SyrenaMobile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = SyrenaMobile.entitlements; path = SyrenaMobile/SyrenaMobile.entitlements; sourceTree = "<group>"; };
+		EAC1E0B91B9F189CC9584AEB /* libPods-SyrenaMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SyrenaMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED0131651FB70A0887529F39 /* Pods-SyrenaMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SyrenaMobile.release.xcconfig"; path = "Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -32,7 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0C80B921A6F3F58F76C31292 /* libPods-SyrenaMobile.a in Frameworks */,
+				C7FA2A325490660CF742B00E /* libPods-SyrenaMobile.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -42,6 +55,7 @@
 		13B07FAE1A68108700A75B9A /* SyrenaMobile */ = {
 			isa = PBXGroup;
 			children = (
+				E81E98992F34F382001D18F8 /* SyrenaMobile.entitlements */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -55,9 +69,37 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				5DCACB8F33CDC322A6C60F78 /* libPods-SyrenaMobile.a */,
+				EAC1E0B91B9F189CC9584AEB /* libPods-SyrenaMobile.a */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		598A9283E92CB92BBDF8870E /* SyrenaMobile */ = {
+			isa = PBXGroup;
+			children = (
+				79435C31EF2C19AAA8AC5378 /* ExpoModulesProvider.swift */,
+			);
+			name = SyrenaMobile;
+			sourceTree = "<group>";
+		};
+		7040C4CFE51E91167D22A4CF /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				598A9283E92CB92BBDF8870E /* SyrenaMobile */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
+		792B37A43B584D29BD5AB7E2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AADEB477E2CB4F9A917DD708 /* CrimsonPro-Italic.ttf */,
+				65CB217D812942988051FE9C /* CrimsonPro-Regular.ttf */,
+				4DD0B78CC4BF4F048AA3C890 /* Inter-Regular.ttf */,
+				4F5B07FB13134403A595C57F /* Lora-Italic.ttf */,
+				0754E0EFDBC04F9B814D16E0 /* Lora-Regular.ttf */,
+			);
+			name = Resources;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -75,6 +117,8 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				792B37A43B584D29BD5AB7E2 /* Resources */,
+				7040C4CFE51E91167D22A4CF /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -92,8 +136,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				3B4392A12AC88292D35C810B /* Pods-SyrenaMobile.debug.xcconfig */,
-				5709B34CF0A7D63546082F79 /* Pods-SyrenaMobile.release.xcconfig */,
+				50E677C1507AA71858ABDFDA /* Pods-SyrenaMobile.debug.xcconfig */,
+				ED0131651FB70A0887529F39 /* Pods-SyrenaMobile.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -105,13 +149,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "SyrenaMobile" */;
 			buildPhases = (
-				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
+				3C6B797F1D49DA9349936FB5 /* [CP] Check Pods Manifest.lock */,
+				A66C61F15C7C0BA87ADA95DD /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
-				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
+				76FF03027142CE38BBAF0F0F /* [CP] Embed Pods Frameworks */,
+				DCF00482C4047A40E3203B11 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -161,6 +206,11 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				E0C2FD3A8F33ABABF50C5C02 /* PrivacyInfo.xcprivacy in Resources */,
+				BADC1DE706404E6F8FF0125D /* CrimsonPro-Italic.ttf in Resources */,
+				E6C0719CFA29473BB0979FF8 /* CrimsonPro-Regular.ttf in Resources */,
+				23F0C3D9AA1E49709AC4B589 /* Inter-Regular.ttf in Resources */,
+				0B55DEED5BCD469FB2B117E0 /* Lora-Italic.ttf in Resources */,
+				326FDE359DD74E9ABB79F92D /* Lora-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,24 +233,7 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
+		3C6B797F1D49DA9349936FB5 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -222,7 +255,48 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		E235C05ADACE081382539298 /* [CP] Copy Pods Resources */ = {
+		76FF03027142CE38BBAF0F0F /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SyrenaMobile/Pods-SyrenaMobile-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		A66C61F15C7C0BA87ADA95DD /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/SyrenaMobile/SyrenaMobile.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-SyrenaMobile/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-SyrenaMobile/ExpoModulesProvider.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-SyrenaMobile/expo-configure-project.sh\"\n";
+		};
+		DCF00482C4047A40E3203B11 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -247,6 +321,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				B2911632C54436DAD8287170 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,10 +330,11 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-SyrenaMobile.debug.xcconfig */;
+			baseConfigurationReference = 50E677C1507AA71858ABDFDA /* Pods-SyrenaMobile.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = SyrenaMobile/SyrenaMobile.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D3JHZMHY8X;
 				ENABLE_BITCODE = NO;
@@ -274,7 +350,8 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = com.syrena.travel;
 				PRODUCT_NAME = SyrenaMobile;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -284,10 +361,11 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-SyrenaMobile.release.xcconfig */;
+			baseConfigurationReference = ED0131651FB70A0887529F39 /* Pods-SyrenaMobile.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = SyrenaMobile/SyrenaMobile.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D3JHZMHY8X;
 				INFOPLIST_FILE = SyrenaMobile/Info.plist;
@@ -302,7 +380,8 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = com.syrena.travel;
 				PRODUCT_NAME = SyrenaMobile;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

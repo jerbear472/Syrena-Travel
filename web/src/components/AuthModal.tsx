@@ -152,8 +152,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
-      <div className="modal-clean w-full max-w-md my-8 animate-scale-in">
+    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="modal-clean w-full max-w-md my-8">
         {/* Header */}
         <div className="relative p-6 pb-0">
           <button
@@ -167,7 +167,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           <div className="text-center mb-6">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-cream rounded-xl border-2 border-warm-stone overflow-hidden">
               <Image
-                src="/bluelyre.png"
+                src="/SYRENABAROQUE.png"
                 alt="Syrena"
                 width={64}
                 height={64}

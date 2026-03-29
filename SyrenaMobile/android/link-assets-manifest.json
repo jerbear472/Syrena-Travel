@@ -1,0 +1,25 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assets/fonts/CrimsonPro-Italic.ttf",
+      "sha1": "450be313ecc836417414662ad7f74781e768006c"
+    },
+    {
+      "path": "src/assets/fonts/CrimsonPro-Regular.ttf",
+      "sha1": "953d2a3c4af67bda816eb5daf58878894db543e6"
+    },
+    {
+      "path": "src/assets/fonts/Inter-Regular.ttf",
+      "sha1": "97d4f3722d62c6cc5340bf6220ada3d64ca367b1"
+    },
+    {
+      "path": "src/assets/fonts/Lora-Italic.ttf",
+      "sha1": "eaebae22bb425221932ec05e297ae74504891012"
+    },
+    {
+      "path": "src/assets/fonts/Lora-Regular.ttf",
+      "sha1": "2b770fae41c7e1ee781ed458bd3df94e3dc0fce3"
+    }
+  ]
+}

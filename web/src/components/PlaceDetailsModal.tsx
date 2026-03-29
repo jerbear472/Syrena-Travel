@@ -39,6 +39,10 @@ export default function PlaceDetailsModal({
     setLoading(true);
 
     try {
+      console.log('PlaceDetailsModal - place data:', place);
+      console.log('PlaceDetailsModal - place.profile:', place.profile);
+      console.log('PlaceDetailsModal - place.profile?.odyssey_icon:', place.profile?.odyssey_icon);
+
       // Check if current user is the owner
       const { data: { user } } = await supabase.auth.getUser();
       setIsOwner(user?.id === place.user_id);
@@ -199,8 +203,8 @@ export default function PlaceDetailsModal({
   };
 
   return (
-    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="modal-clean w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scale-in">
+    <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4">
+      <div className="modal-clean w-full max-w-2xl max-h-[85vh] overflow-hidden">
         {/* Header */}
         <div className="relative p-6 border-b border-gray-200">
           <button

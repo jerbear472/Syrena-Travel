@@ -168,10 +168,31 @@ Respond in JSON format:
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, friendPlaces, lat, lng } = await request.json();
+    // Validate content length to prevent large payload attacks
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 50000) {
+      return NextResponse.json({ error: 'Request too large' }, { status: 413 });
+    }
 
-    if (!query) {
+    const body = await request.json();
+    const { query, friendPlaces, lat, lng } = body;
+
+    // Input validation
+    if (!query || typeof query !== 'string') {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
+    }
+
+    if (query.length > 500) {
+      return NextResponse.json({ error: 'Query too long' }, { status: 400 });
+    }
+
+    // Validate coordinates if provided
+    if (lat !== undefined && lng !== undefined) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+        return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
+      }
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {

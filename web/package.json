@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
     "@googlemaps/markerclusterer": "^2.6.2",
     "@hookform/resolvers": "^5.2.2",
     "@react-google-maps/api": "^2.20.7",

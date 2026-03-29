@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, Plus } from 'lucide-react';
+import { Search, MapPin, Plus, Navigation } from 'lucide-react';
 
 interface SearchBarProps {
   onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
@@ -11,6 +11,7 @@ interface SearchBarProps {
 
 export default function SearchBar({ onPlaceSelect, onAddCoordinates, isLoaded }: SearchBarProps) {
   const [searchValue, setSearchValue] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -27,8 +28,11 @@ export default function SearchBar({ onPlaceSelect, onAddCoordinates, isLoaded }:
     const listener = autocompleteRef.current.addListener('place_changed', () => {
       const place = autocompleteRef.current?.getPlace();
       if (place && place.geometry && place.geometry.location) {
+        setIsSearching(true);
         onPlaceSelect(place);
         setSearchValue('');
+        // Reset searching state after animation
+        setTimeout(() => setIsSearching(false), 500);
       }
     });
 
@@ -42,14 +46,18 @@ export default function SearchBar({ onPlaceSelect, onAddCoordinates, isLoaded }:
   return (
     <div className="relative w-full sm:w-auto flex gap-2">
       {/* Search Input */}
-      <div className="relative flex-1 sm:w-64">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-terracotta pointer-events-none" size={16} />
+      <div className="relative flex-1 sm:w-72">
+        {isSearching ? (
+          <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 text-deep-teal pointer-events-none animate-pulse" size={16} />
+        ) : (
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ocean-grey pointer-events-none" size={16} />
+        )}
         <input
           ref={inputRef}
           type="text"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
-          placeholder="Search places..."
+          placeholder="Search any place, hotel, restaurant..."
           className="input-clean pl-10 pr-4 w-full"
         />
       </div>

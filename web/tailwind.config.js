@@ -39,10 +39,10 @@ module.exports = {
         'siren-shimmer': 'linear-gradient(135deg, #597387 0%, #7A8FA3 50%, #B8A688 100%)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
-        'slide-in': 'slideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-        'slide-up': 'slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-        'scale-in': 'scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        'fade-in': 'fadeIn 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both',
+        'slide-in': 'slideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'slide-up': 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'scale-in': 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
       },
       keyframes: {
         fadeIn: {
@@ -50,16 +50,16 @@ module.exports = {
           '100%': { opacity: '1' },
         },
         slideIn: {
-          '0%': { transform: 'translateX(-100%)', opacity: '0' },
+          '0%': { transform: 'translateX(-16px)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
         },
         slideUp: {
-          '0%': { transform: 'translateY(12px)', opacity: '0' },
+          '0%': { transform: 'translateY(16px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
         scaleIn: {
-          '0%': { transform: 'scale(0.94)', opacity: '0' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
+          '0%': { transform: 'scale(0.92) translateY(8px)', opacity: '0' },
+          '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
         },
       },
       boxShadow: {

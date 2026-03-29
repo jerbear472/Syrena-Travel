@@ -57,9 +57,10 @@ interface MapViewProps {
   isAuthenticated?: boolean;
   center?: { lat: number; lng: number } | null;
   onMapLoad?: () => void;
+  categoryFilter?: string;
 }
 
-const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMapLoad }: MapViewProps) => {
+const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMapLoad, categoryFilter = 'all' }: MapViewProps) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState(defaultCenter);
   const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
@@ -156,7 +157,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     if (isLoaded && map) {
       loadAllPlaces();
     }
-  }, [isLoaded, map, isAuthenticated, showOnlyFriends, selectedFriendId]);
+  }, [isLoaded, map, isAuthenticated, showOnlyFriends, selectedFriendId, categoryFilter]);
 
   // Update markers when map or saved places change (but NOT on zoom changes to prevent flashing)
   useEffect(() => {
@@ -526,7 +527,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   };
 
   const updateMarkers = (places: any[], zoom: number) => {
-    console.log('updateMarkers called with', places.length, 'places');
+    console.log('updateMarkers called with', places.length, 'places, categoryFilter:', categoryFilter);
     // Clear all existing markers from both map and clusterer
     allMarkersRef.current.forEach(marker => marker.setMap(null));
     allMarkersRef.current = [];
@@ -538,10 +539,22 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
     if (!map) return;
 
+    // Filter places by category
+    let filteredPlaces = places;
+    if (categoryFilter && categoryFilter !== 'all') {
+      if (categoryFilter === 'my-picks') {
+        // Show all user's places (already filtered by user in loadAllPlaces)
+        filteredPlaces = places;
+      } else {
+        filteredPlaces = places.filter(place => place.category === categoryFilter);
+      }
+      console.log('Filtered to', filteredPlaces.length, 'places for category:', categoryFilter);
+    }
+
     // Create markers using the same lyre-circle.svg as the temp marker
     const allMarkers: google.maps.Marker[] = [];
 
-    places.forEach(place => {
+    filteredPlaces.forEach(place => {
       console.log('Creating marker for place:', place.name, 'at', place.lat, place.lng);
       console.log('Place data:', JSON.stringify(place, null, 2));
 

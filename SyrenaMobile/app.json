@@ -1,4 +1,44 @@
 {
   "name": "SyrenaMobile",
-  "displayName": "SyrenaMobile"
+  "displayName": "Syrena",
+  "expo": {
+    "name": "Syrena",
+    "slug": "syrena-travel",
+    "version": "1.0.0",
+    "scheme": "syrena",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/SyrenaStar.png",
+    "splash": {
+      "image": "./src/assets/images/SyrenaStar.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAFBFC"
+    },
+    "ios": {
+      "bundleIdentifier": "com.syrena.travel",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "com.syrena.travel",
+      "versionCode": 1,
+      "useNextNotificationsApi": true
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/images/SyrenaStar.png",
+          "color": "#1E3A5F"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "dbb8857f-adaf-44f0-9250-bccd1c7691e9"
+      }
+    }
+  }
 }

@@ -284,8 +284,8 @@ export default function Friends({ isSidebarOpen, onToggleSidebar }: FriendsProps
 
       {/* Invite Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="modal-clean w-full max-w-lg animate-scale-in">
+        <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4">
+          <div className="modal-clean w-full max-w-lg">
             <div className="p-6 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="heading-2">Add Friend</h2>

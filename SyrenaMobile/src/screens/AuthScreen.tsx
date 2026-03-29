@@ -2,28 +2,63 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
   ActivityIndicator,
+  ScrollView,
+  useColorScheme,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
-import theme from '../theme';
+import { theme, getThemeColors } from '../theme';
+import { Input } from '../components/ui/Input';
+import { MaterialIcons as Icon } from '@expo/vector-icons';
+
+// Import app logo
+const appLogo = require('../assets/images/SyrenaStar.png');
 
 export default function AuthScreen() {
+  const isDarkMode = useColorScheme() === 'dark';
+  const colors = getThemeColors(isDarkMode);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Email Required', 'Please enter your email address first');
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://syrena-web-new.vercel.app/auth/confirm',
+      });
+      if (error) throw error;
+      Alert.alert(
+        'Check Your Email',
+        'We sent you a password reset link',
+        [{ text: 'OK', style: 'default' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setResettingPassword(false);
+    }
+  };
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Missing Information', 'Please fill in all fields');
       return;
     }
 
@@ -32,150 +67,281 @@ export default function AuthScreen() {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        Alert.alert('Success', 'Check your email for verification!');
+        Alert.alert(
+          'Success!',
+          'Check your email for verification link',
+          [{ text: 'OK', style: 'default' }]
+        );
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert(
+        'Authentication Error',
+        error.message,
+        [{ text: 'OK', style: 'default' }]
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
-        <View style={styles.header}>
-          <Image
-            source={require('../assets/images/bluelyre.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.title}>Syrena</Text>
-          <Text style={styles.subtitle}>Your personal travel map</Text>
-        </View>
-
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!loading}
-          />
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleAuth}
-            disabled={loading}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {isSignUp ? 'Sign Up' : 'Sign In'}
+            {/* Header Section with Logo */}
+            <View style={styles.header}>
+              <Image
+                source={appLogo}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+
+              <Text style={[styles.brandName, { color: colors.primary }]}>
+                SYRENA
               </Text>
-            )}
-          </TouchableOpacity>
+              <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+                Discover your next adventure
+              </Text>
+            </View>
 
-          <TouchableOpacity
-            onPress={() => setIsSignUp(!isSignUp)}
-            disabled={loading}
-          >
-            <Text style={styles.switchText}>
-              {isSignUp
-                ? 'Already have an account? Sign In'
-                : "Don't have an account? Sign Up"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            {/* Form Card */}
+            <View
+              style={[
+                styles.formCard,
+                { backgroundColor: colors.surface },
+              ]}
+            >
+              <Text style={[styles.formTitle, { color: colors.primary }]}>
+                {isSignUp ? 'Create Account' : 'Welcome Back'}
+              </Text>
+              <Text style={[styles.formSubtitle, { color: colors.textTertiary }]}>
+                {isSignUp
+                  ? 'Start your travel journey'
+                  : 'Sign in to continue'}
+              </Text>
+
+              <View style={styles.inputsContainer}>
+                <Input
+                  label="Email"
+                  icon="mail-outline"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  placeholder="your@email.com"
+                  size="large"
+                />
+
+                <Input
+                  label="Password"
+                  icon="lock-outline"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  placeholder="Enter your password"
+                  size="large"
+                  rightIcon={showPassword ? 'visibility-off' : 'visibility'}
+                  onRightIconPress={() => setShowPassword(!showPassword)}
+                />
+
+                {/* Forgot Password - subtle, only on sign in */}
+                {!isSignUp && (
+                  <TouchableOpacity
+                    onPress={handleForgotPassword}
+                    disabled={resettingPassword || loading}
+                    style={styles.forgotPasswordButton}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={[styles.forgotPasswordText, { color: colors.textTertiary }]}>
+                      {resettingPassword ? 'Sending...' : 'Forgot password?'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {isSignUp && (
+                <View style={styles.passwordHint}>
+                  <Icon name="info-outline" size={14} color={colors.textTertiary} />
+                  <Text style={[styles.hintText, { color: colors.textTertiary }]}>
+                    Password must be at least 6 characters
+                  </Text>
+                </View>
+              )}
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: colors.primary },
+                  loading && styles.submitButtonDisabled,
+                ]}
+                onPress={handleAuth}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.surface} />
+                ) : (
+                  <Text style={[styles.submitButtonText, { color: colors.surface }]}>
+                    {isSignUp ? 'Get Started' : 'Sign In'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Toggle Sign In/Up */}
+              <TouchableOpacity
+                onPress={() => setIsSignUp(!isSignUp)}
+                disabled={loading}
+                style={styles.toggleButton}
+              >
+                <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
+                  {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+                  <Text style={[styles.toggleTextBold, { color: colors.primary }]}>
+                    {isSignUp ? 'Sign In' : 'Sign Up'}
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+                By continuing, you agree to our Terms of Service
+              </Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.cream,
   },
-  content: {
+  safeArea: {
     flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: theme.spacing.xxl,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    marginBottom: 16,
   },
-  title: {
-    fontSize: theme.fontSize.display,
-    fontFamily: theme.fonts.display.regular,
-    fontWeight: '300',
-    color: theme.colors.midnightBlue,
-    marginBottom: theme.spacing.sm,
+  brandName: {
+    fontSize: 32,
+    fontWeight: '600',
+    letterSpacing: 10,
+    fontFamily: theme.typography.fonts.display.regular,
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.serif.regular,
-    color: theme.colors.oceanGrey,
+  tagline: {
+    fontSize: theme.typography.sizes.base,
+    fontFamily: theme.typography.fonts.heading.italic,
+    fontStyle: 'italic',
   },
-  form: {
-    width: '100%',
+  formCard: {
+    borderRadius: theme.borderRadius.card,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.md,
   },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.sans.regular,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: theme.colors.seaMist,
-    color: theme.colors.midnightBlue,
+  formTitle: {
+    fontSize: theme.typography.sizes.xxl,
+    fontWeight: '600',
+    fontFamily: theme.typography.fonts.heading.regular,
+    textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
-  button: {
-    backgroundColor: theme.colors.midnightBlue,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
+  formSubtitle: {
+    fontSize: theme.typography.sizes.base,
+    fontFamily: theme.typography.fonts.body.regular,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  inputsContainer: {
+    marginBottom: 8,
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    marginTop: -4,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+    fontFamily: theme.typography.fonts.body.regular,
+  },
+  passwordHint: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    gap: 6,
+    marginBottom: 16,
   },
-  buttonDisabled: {
-    opacity: 0.5,
+  hintText: {
+    fontSize: 12,
+    fontFamily: theme.typography.fonts.body.regular,
   },
-  buttonText: {
-    color: theme.colors.cream,
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fonts.sans.regular,
+  submitButton: {
+    height: 52,
+    borderRadius: theme.borderRadius.button,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.typography.fonts.body.regular,
+  },
+  toggleButton: {
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  toggleText: {
+    fontSize: 14,
+    fontFamily: theme.typography.fonts.body.regular,
+    textAlign: 'center',
+  },
+  toggleTextBold: {
     fontWeight: '600',
   },
-  switchText: {
-    color: theme.colors.oceanGrey,
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fonts.sans.regular,
+  footer: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    fontFamily: theme.typography.fonts.body.regular,
     textAlign: 'center',
   },
 });

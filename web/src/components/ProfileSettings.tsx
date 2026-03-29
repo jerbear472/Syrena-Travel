@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { User, Camera, Save, ArrowLeft, Loader2 } from 'lucide-react';
+import { User, Camera, Save, ArrowLeft, Loader2, MapPin, Star, Utensils, Coffee, Hotel, Mountain, ShoppingBag, Building2, Gem, Camera as CameraIcon, MoreHorizontal, Award, Heart } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 
@@ -16,6 +16,30 @@ const ODYSSEY_ICONS = [
   'odyssey-10.png', 'odyssey-11.png', 'odyssey-12.png'
 ];
 
+const CATEGORY_ICONS: Record<string, any> = {
+  restaurant: Utensils,
+  cafe: Coffee,
+  hotel: Hotel,
+  viewpoint: CameraIcon,
+  nature: Mountain,
+  shopping: ShoppingBag,
+  museum: Building2,
+  'hidden-gem': Gem,
+  other: MoreHorizontal,
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  restaurant: 'bg-orange-100 text-orange-600',
+  cafe: 'bg-amber-100 text-amber-600',
+  hotel: 'bg-indigo-100 text-indigo-600',
+  viewpoint: 'bg-blue-100 text-blue-600',
+  nature: 'bg-green-100 text-green-600',
+  shopping: 'bg-purple-100 text-purple-600',
+  museum: 'bg-cyan-100 text-cyan-600',
+  'hidden-gem': 'bg-pink-100 text-pink-600',
+  other: 'bg-gray-100 text-gray-600',
+};
+
 export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,8 +47,11 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [odysseyIcon, setOdysseyIcon] = useState<string | null>(null);
+  const [userPlaces, setUserPlaces] = useState<any[]>([]);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
@@ -48,14 +75,37 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
           setProfile(profile);
           setDisplayName(profile.display_name || '');
           setUsername(profile.username || '');
+          setBio(profile.bio || '');
           setAvatarUrl(profile.avatar_url);
           setOdysseyIcon(profile.odyssey_icon || null);
         }
+
+        // Load user's places
+        loadUserPlaces(user.id);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUserPlaces = async (userId: string) => {
+    setLoadingPlaces(true);
+    try {
+      const { data: places, error } = await supabase
+        .from('places')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setUserPlaces(places || []);
+    } catch (error) {
+      console.error('Error loading places:', error);
+    } finally {
+      setLoadingPlaces(false);
     }
   };
 
@@ -139,6 +189,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
         .update({
           display_name: displayName,
           username: username,
+          bio: bio,
           odyssey_icon: odysseyIcon
         })
         .eq('id', user.id);
@@ -322,6 +373,22 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
 
               <div>
                 <label className="block text-sm font-serif font-medium text-midnight-blue mb-2">
+                  Bio / About Me
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Tell others about yourself and your travel style..."
+                  className="input-clean w-full resize-none"
+                  rows={4}
+                />
+                <p className="text-xs text-ocean-grey mt-1">
+                  Share your travel interests and what kind of places you love to discover
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-serif font-medium text-midnight-blue mb-2">
                   Email
                 </label>
                 <input
@@ -333,6 +400,101 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
                 <p className="text-xs text-ocean-grey mt-1">
                   Email cannot be changed
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* My Recommendations Section */}
+          <div className="card-minimal p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Award className="text-siren-gold" size={20} />
+                <h2 className="font-serif font-semibold text-earth-brown text-lg">
+                  My Recommendations
+                </h2>
+              </div>
+              <span className="text-sm text-ocean-grey">
+                {userPlaces.length} places saved
+              </span>
+            </div>
+
+            {loadingPlaces ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin text-deep-teal" size={24} />
+              </div>
+            ) : userPlaces.length === 0 ? (
+              <div className="text-center py-8 bg-sea-mist/30 rounded-lg border-2 border-dashed border-stone-blue">
+                <MapPin className="mx-auto text-ocean-grey mb-2" size={32} />
+                <p className="text-ocean-grey font-serif">
+                  No places saved yet
+                </p>
+                <p className="text-sm text-ocean-grey mt-1">
+                  Start exploring and save your favorite places!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {userPlaces.map((place) => {
+                  const CategoryIcon = CATEGORY_ICONS[place.category] || MapPin;
+                  const categoryColor = CATEGORY_COLORS[place.category] || 'bg-gray-100 text-gray-600';
+
+                  return (
+                    <div
+                      key={place.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-sea-mist/20 border border-stone-blue/50 hover:bg-sea-mist/40 transition-colors"
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${categoryColor}`}>
+                        <CategoryIcon size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-serif font-medium text-midnight-blue truncate">
+                          {place.name}
+                        </h3>
+                        {place.description && (
+                          <p className="text-xs text-ocean-grey truncate mt-0.5">
+                            {place.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-siren-gold">
+                        <Heart size={14} className="fill-current" />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {userPlaces.length >= 10 && (
+                  <p className="text-center text-sm text-ocean-grey py-2">
+                    Showing your 10 most recent places
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Profile Stats */}
+          <div className="card-minimal p-6">
+            <h2 className="font-serif font-semibold text-earth-brown mb-4 text-lg">
+              Your Stats
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 rounded-lg bg-sea-mist/30">
+                <div className="text-2xl font-display font-bold text-midnight-blue">
+                  {userPlaces.length}
+                </div>
+                <div className="text-xs text-ocean-grey mt-1">Places Saved</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-siren-gold/10">
+                <div className="text-2xl font-display font-bold text-siren-gold">
+                  {profile?.xp || 0}
+                </div>
+                <div className="text-xs text-ocean-grey mt-1">XP Earned</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-deep-teal/10">
+                <div className="text-2xl font-display font-bold text-deep-teal">
+                  {Math.floor((profile?.xp || 0) / 100) + 1}
+                </div>
+                <div className="text-xs text-ocean-grey mt-1">Level</div>
               </div>
             </div>
           </div>

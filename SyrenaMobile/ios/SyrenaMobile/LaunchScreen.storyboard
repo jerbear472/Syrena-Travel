@@ -16,39 +16,32 @@
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <!-- Logo Image -->
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="bluelyre" translatesAutoresizingMaskIntoConstraints="NO" id="tnd-TW-RAf">
-                                <rect key="frame" x="137.5" y="258.5" width="100" height="100"/>
+                            <!-- App Icon - 120x120 to match React splash proportionally -->
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="SyrenaStar" translatesAutoresizingMaskIntoConstraints="NO" id="iconImageView">
+                                <rect key="frame" x="127.5" y="190" width="120" height="120"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="100" id="fxx-aA-zaM"/>
-                                    <constraint firstAttribute="height" constant="100" id="sDQ-aa-qyp"/>
+                                    <constraint firstAttribute="width" constant="120" id="iconWidth"/>
+                                    <constraint firstAttribute="height" constant="120" id="iconHeight"/>
                                 </constraints>
                             </imageView>
-                            <!-- App Name -->
-                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Syrena" textAlignment="center" lineBreakMode="middleTruncation" baselineAdjustment="alignBaselines" minimumFontSize="18" translatesAutoresizingMaskIntoConstraints="NO" id="GJd-Yh-RWb">
-                                <rect key="frame" x="0.0" y="378.5" width="375" height="48"/>
-                                <fontDescription key="fontDescription" type="system" weight="light" pointSize="40"/>
-                                <color key="textColor" red="0.239" green="0.333" blue="0.408" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
-                            <!-- Subtitle -->
-                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Your personal travel map" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumFontSize="9" translatesAutoresizingMaskIntoConstraints="NO" id="MN2-I3-ftu">
-                                <rect key="frame" x="0.0" y="436.5" width="375" height="17"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
-                                <color key="textColor" red="0.478" green="0.561" blue="0.639" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <!-- App Name - matches React splash title styling -->
+                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="SYRENA" textAlignment="center" lineBreakMode="middleTruncation" baselineAdjustment="alignBaselines" minimumFontSize="18" translatesAutoresizingMaskIntoConstraints="NO" id="GJd-Yh-RWb">
+                                <rect key="frame" x="0.0" y="340" width="375" height="50"/>
+                                <fontDescription key="fontDescription" name="CrimsonPro-Regular" family="Crimson Pro" pointSize="42"/>
+                                <color key="textColor" red="0.722" green="0.525" blue="0.043" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <nil key="highlightedColor"/>
                             </label>
                         </subviews>
-                        <color key="backgroundColor" red="0.961" green="0.969" blue="0.980" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.98" green="0.984" blue="0.988" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="Bcu-3y-fUS" firstAttribute="centerX" secondItem="GJd-Yh-RWb" secondAttribute="centerX" id="Q3B-4B-g5h"/>
-                            <constraint firstItem="MN2-I3-ftu" firstAttribute="centerX" secondItem="Bcu-3y-fUS" secondAttribute="centerX" id="akx-eg-2ui"/>
-                            <constraint firstItem="MN2-I3-ftu" firstAttribute="leading" secondItem="Bcu-3y-fUS" secondAttribute="leading" id="i1E-0Y-4RG"/>
-                            <constraint firstItem="GJd-Yh-RWb" firstAttribute="leading" secondItem="Bcu-3y-fUS" secondAttribute="leading" symbolic="YES" id="x7j-FC-K8j"/>
-                            <constraint firstItem="tnd-TW-RAf" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="Tsl-nn-XLj"/>
-                            <constraint firstItem="tnd-TW-RAf" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-25" id="bQq-1g-aPT"/>
-                            <constraint firstItem="GJd-Yh-RWb" firstAttribute="top" secondItem="tnd-TW-RAf" secondAttribute="bottom" constant="20" id="rXx-3v-qMB"/>
-                            <constraint firstItem="MN2-I3-ftu" firstAttribute="top" secondItem="GJd-Yh-RWb" secondAttribute="bottom" constant="10" id="waC-yH-0Zm"/>
+                            <!-- Icon: centered horizontally, positioned above center -->
+                            <constraint firstItem="iconImageView" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="iconCenterX"/>
+                            <constraint firstItem="iconImageView" firstAttribute="bottom" secondItem="GJd-Yh-RWb" secondAttribute="top" constant="-28" id="iconBottom"/>
+                            <!-- Title: centered, slightly above vertical center -->
+                            <constraint firstItem="GJd-Yh-RWb" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="16" id="titleCenterY"/>
+                            <constraint firstItem="GJd-Yh-RWb" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="titleCenterX"/>
+                            <constraint firstItem="GJd-Yh-RWb" firstAttribute="leading" secondItem="Bcu-3y-fUS" secondAttribute="leading" id="titleLeading"/>
+                            <constraint firstItem="Bcu-3y-fUS" firstAttribute="trailing" secondItem="GJd-Yh-RWb" secondAttribute="trailing" id="titleTrailing"/>
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
                     </view>
@@ -59,6 +52,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="bluelyre" width="200" height="200"/>
+        <image name="SyrenaStar" width="1024" height="1024"/>
     </resources>
 </document>
