@@ -5,7 +5,8 @@ import Config from 'react-native-config';
 // In development, use local IP for iOS device and 10.0.2.2 for Android emulator
 // In production, this should be your deployed API URL
 
-const DEV_API_HOST = Config.DEV_API_HOST || 'localhost';
+// Use 127.0.0.1 for iOS simulator (localhost doesn't always work)
+const DEV_API_HOST = Config.DEV_API_HOST || '127.0.0.1';
 const DEV_API_PORT = Config.DEV_API_PORT || '5001';
 const PROD_API_URL = Config.PROD_API_URL || 'https://api.syrena.travel';
 

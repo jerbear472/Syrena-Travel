@@ -15,6 +15,7 @@ interface ClaudePlace {
   lat: number;
   lng: number;
   why: string;
+  isUserPlace?: boolean;
   isFriendPlace?: boolean;
   friend_name?: string;
 }
@@ -148,7 +149,15 @@ RECOMMENDATIONS:
 - Approximate coordinates (lat/lng) for each place
 - Match the places to the user's ACTUAL request. If they want bars, give them bars. If they want a date itinerary, build an evening.
 
-CRITICAL: Only recommend places you are confident actually exist RIGHT NOW. Use their real, full, official name (the name you'd see on Google Maps). If you're not 95% sure a place exists, don't include it — we verify every recommendation against Google Places, and fake ones get dropped. Better to recommend 4 real places than 6 with 2 hallucinated ones.
+USER'S SAVED PLACES:
+- When the user has saved places that match the query, ALWAYS include them first with isUserPlace: true
+- For user's saved places, use the exact name they saved - don't modify it
+- These are places the user already knows and loves, so acknowledge that in the "why" field (e.g., "You saved this one for a reason...")
+
+FRIEND'S PLACES:
+- For friend recommendations, set isFriendPlace: true and include friend_name
+
+CRITICAL: Only recommend NEW places (not user's saved places) that you are confident actually exist RIGHT NOW. Use their real, full, official name (the name you'd see on Google Maps). If you're not 95% sure a place exists, don't include it — we verify every recommendation against Google Places, and fake ones get dropped. Better to recommend 4 real places than 6 with 2 hallucinated ones.
 
 Respond in JSON format:
 {
@@ -161,7 +170,10 @@ Respond in JSON format:
       "address": "Full address",
       "lat": 40.7128,
       "lng": -74.0060,
-      "why": "Your honest, opinionated take"
+      "why": "Your honest, opinionated take",
+      "isUserPlace": false,
+      "isFriendPlace": false,
+      "friend_name": null
     }
   ]
 }`;
@@ -175,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { query, friendPlaces, lat, lng } = body;
+    const { query, userPlaces, friendPlaces, lat, lng } = body;
 
     // Input validation
     if (!query || typeof query !== 'string') {
@@ -205,15 +217,23 @@ export async function POST(request: NextRequest) {
       locationContext = `\n\nThe user's current location is approximately ${lat}, ${lng}. If their query is vague about location (e.g. "best brunch near me"), use these coordinates to determine their city/neighborhood. If they specify a different location in their query, use that instead.`;
     }
 
+    // Build context about user's saved places if available
+    let userPlacesContext = '';
+    if (userPlaces && userPlaces.length > 0) {
+      userPlacesContext = `\n\nIMPORTANT - The user has already saved these places to their collection:\n${userPlaces.map((p: any) =>
+        `- "${p.name}" (${p.category}) in ${p.city || 'unknown location'}: ${p.description || 'no description'}`
+      ).join('\n')}\n\nPrioritize recommending places from their saved collection if they match the query. These are places they already love! Include them first, then supplement with new discoveries they might enjoy.`;
+    }
+
     // Build context about friends' places if available
     let friendContext = '';
     if (friendPlaces && friendPlaces.length > 0) {
-      friendContext = `\n\nThe user's friends have saved these places in or near this area:\n${friendPlaces.map((p: any) =>
+      friendContext = `\n\nThe user's friends have saved these places:\n${friendPlaces.map((p: any) =>
         `- "${p.name}" (${p.category}) by ${p.friend_name}: ${p.description || 'no description'}`
-      ).join('\n')}\n\nIncorporate awareness of these friends' picks. If any are great, mention them. Suggest complementary places that would round out the experience.`;
+      ).join('\n')}\n\nIf any of these match the query, mention them as "friend's pick". Suggest complementary places that would round out the experience.`;
     }
 
-    const userMessage = `"${query}"${locationContext}${friendContext}\n\nGive me your best. JSON format only, real places only. Read the vibe of what I'm asking for and match it perfectly.`;
+    const userMessage = `"${query}"${locationContext}${userPlacesContext}${friendContext}\n\nGive me your best. JSON format only, real places only. Read the vibe of what I'm asking for and match it perfectly. Prioritize places from the user's saved collection when relevant.`;
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -247,42 +267,57 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify and enrich places with Google in parallel (all at once for speed)
-    // ONLY keep places Google can verify — this filters out hallucinated places
+    // Skip verification for user's saved places - they're already trusted
+    // ONLY verify NEW places to filter out hallucinated ones
     if (parsed.places && parsed.places.length > 0) {
       const originalCount = parsed.places.length;
       const verifiedPlaces: any[] = [];
 
-      // Process all places in parallel for maximum speed
-      const results = await Promise.allSettled(
-        parsed.places.map(place => verifyAndEnrichWithGoogle(place))
-      );
+      // Separate user's saved places from new recommendations
+      const userSavedPlaces = parsed.places.filter(p => p.isUserPlace);
+      const newPlaces = parsed.places.filter(p => !p.isUserPlace);
 
-      parsed.places.forEach((place, index) => {
-        const result = results[index];
-        if (result.status !== 'fulfilled') return;
-
-        const google = result.value;
-        if (!google.verified) {
-          console.log(`[Guide] Dropped unverified place: ${place.name}`);
-          return; // Skip — Google couldn't find it, probably hallucinated
-        }
-
+      // Add user's saved places directly (no verification needed)
+      userSavedPlaces.forEach(place => {
         verifiedPlaces.push({
           ...place,
-          // Use Google's ground truth for coordinates, address, and name
-          name: google.google_name || place.name,
-          address: google.address || place.address,
-          lat: google.lat || place.lat,
-          lng: google.lng || place.lng,
-          photo_url: google.photo_url,
-          price_level: google.price_level,
-          rating: google.rating,
-          google_place_id: google.google_place_id,
+          isUserPlace: true,
         });
       });
 
+      // Only verify new places with Google
+      if (newPlaces.length > 0) {
+        const results = await Promise.allSettled(
+          newPlaces.map(place => verifyAndEnrichWithGoogle(place))
+        );
+
+        newPlaces.forEach((place, index) => {
+          const result = results[index];
+          if (result.status !== 'fulfilled') return;
+
+          const google = result.value;
+          if (!google.verified) {
+            console.log(`[Guide] Dropped unverified place: ${place.name}`);
+            return; // Skip — Google couldn't find it, probably hallucinated
+          }
+
+          verifiedPlaces.push({
+            ...place,
+            // Use Google's ground truth for coordinates, address, and name
+            name: google.google_name || place.name,
+            address: google.address || place.address,
+            lat: google.lat || place.lat,
+            lng: google.lng || place.lng,
+            photo_url: google.photo_url,
+            price_level: google.price_level,
+            rating: google.rating,
+            google_place_id: google.google_place_id,
+          });
+        });
+      }
+
       parsed.places = verifiedPlaces;
-      console.log(`[Guide] ${verifiedPlaces.length} verified places returned (from ${originalCount} Claude suggestions)`);
+      console.log(`[Guide] ${verifiedPlaces.length} places returned (${userSavedPlaces.length} user saved, ${verifiedPlaces.length - userSavedPlaces.length} verified from ${newPlaces.length} new)`);
     }
 
     return NextResponse.json(parsed);

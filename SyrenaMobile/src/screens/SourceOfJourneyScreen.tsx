@@ -203,40 +203,59 @@ export default function SourceOfJourneyScreen() {
     }
   }, [loading]);
 
-  const fetchFriendsPlaces = async () => {
+  const fetchUserAndFriendsPlaces = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) return { userPlaces: [], friendPlaces: [] };
 
+      // Fetch user's own saved places
+      const { data: userPlacesData } = await supabase
+        .from('places')
+        .select('name, description, category, lat, lng, city, address')
+        .eq('user_id', user.id);
+
+      const userPlaces = (userPlacesData || []).map((p: any) => ({
+        name: p.name,
+        description: p.description,
+        category: p.category,
+        lat: p.lat,
+        lng: p.lng,
+        city: p.city,
+        address: p.address,
+        isUserPlace: true,
+      }));
+
+      // Fetch friends' places
       const { data: friendships } = await supabase
         .from('friendships')
         .select('requester_id, addressee_id')
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
         .eq('status', 'accepted');
 
-      if (!friendships || friendships.length === 0) return [];
+      let friendPlaces: any[] = [];
+      if (friendships && friendships.length > 0) {
+        const friendIds = friendships.map(f =>
+          f.requester_id === user.id ? f.addressee_id : f.requester_id
+        );
 
-      const friendIds = friendships.map(f =>
-        f.requester_id === user.id ? f.addressee_id : f.requester_id
-      );
+        const { data: places } = await supabase
+          .from('places')
+          .select('*, profile:profiles!places_user_id_fkey(display_name, username)')
+          .in('user_id', friendIds);
 
-      const { data: places } = await supabase
-        .from('places')
-        .select('*, profile:profiles!places_user_id_fkey(display_name, username)')
-        .in('user_id', friendIds);
+        friendPlaces = (places || []).map((p: any) => ({
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          lat: p.lat,
+          lng: p.lng,
+          friend_name: p.profile?.display_name || p.profile?.username || 'A friend',
+        }));
+      }
 
-      if (!places) return [];
-
-      return places.map((p: any) => ({
-        name: p.name,
-        description: p.description,
-        category: p.category,
-        lat: p.lat,
-        lng: p.lng,
-        friend_name: p.profile?.display_name || p.profile?.username || 'A friend',
-      }));
+      return { userPlaces, friendPlaces };
     } catch {
-      return [];
+      return { userPlaces: [], friendPlaces: [] };
     }
   };
 
@@ -259,7 +278,7 @@ export default function SourceOfJourneyScreen() {
     saveToHistory(q);
 
     try {
-      const friendPlaces = await fetchFriendsPlaces();
+      const { userPlaces, friendPlaces } = await fetchUserAndFriendsPlaces();
 
       // Create abort controller for timeout
       const controller = new AbortController();
@@ -270,6 +289,7 @@ export default function SourceOfJourneyScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: q,
+          userPlaces,
           friendPlaces,
           ...(userLocation && { lat: userLocation.latitude, lng: userLocation.longitude }),
         }),
