@@ -1,13 +1,5 @@
 {
   "buildCommand": "cd web && npm install && npm run build",
   "outputDirectory": "web/.next",
-  "installCommand": "cd web && npm install",
-  "functions": {
-    "web/src/app/api/source-of-journey/route.ts": {
-      "maxDuration": 60
-    },
-    "web/src/app/api/onboarding-places/route.ts": {
-      "maxDuration": 60
-    }
-  }
+  "installCommand": "cd web && npm install"
 }
