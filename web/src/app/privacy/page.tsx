@@ -2,11 +2,11 @@ export default function PrivacyPolicyPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1E3A5F 0%, #0D264C 100%)',
+      background: 'linear-gradient(135deg, #1E3A5F 0%, #152A45 100%)',
       padding: '40px 20px',
     }}>
       <div style={{
-        background: '#FFFBF5',
+        background: '#FAFBFC',
         borderRadius: '20px',
         padding: '48px',
         maxWidth: '800px',
@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
           Privacy Policy
         </h1>
         <p style={{
-          color: '#5A7184',
+          color: '#64748B',
           fontSize: '14px',
           marginBottom: '32px',
           textAlign: 'center',
@@ -91,7 +91,7 @@ export default function PrivacyPolicyPage() {
           <Section title="Contact Us">
             <p>
               If you have questions about this Privacy Policy, please contact us at:{' '}
-              <a href="mailto:wavesight0@gmail.com" style={{ color: '#C9A962' }}>
+              <a href="mailto:wavesight0@gmail.com" style={{ color: '#B8860B' }}>
                 wavesight0@gmail.com
               </a>
             </p>
@@ -110,7 +110,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         fontSize: '18px',
         fontWeight: '600',
         marginBottom: '12px',
-        borderBottom: '2px solid #C9A962',
+        borderBottom: '2px solid #B8860B',
         paddingBottom: '8px',
       }}>
         {title}

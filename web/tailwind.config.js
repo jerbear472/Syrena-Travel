@@ -8,35 +8,71 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Muted Blue Rustic Palette - Siren & Lyre Theme
-        cream: '#F5F7FA',
-        'off-white': '#EEF2F6',
-        'sea-mist': '#DFE6ED',
-        'stone-blue': '#C8D4DF',
-        'driftwood': '#A8B8C7',
-        'ocean-grey': '#7A8FA3',
-        'deep-teal': '#597387',
-        'midnight-blue': '#3D5568',
-        'ocean-depth': '#2A3F50',
-        'charcoal-blue': '#1F2D3A',
-        'sage-blue': '#7C9AA5',
-        'aqua-mist': '#95B5BC',
-        'seafoam': '#6B8B95',
-        // Accent colors for siren theme
-        'siren-gold': '#B8A688',
-        'lyre-bronze': '#9B8470',
+        // Deep Navy & Antique Gold - Matching Mobile App Theme
+        // Primary Navy Palette
+        'primary': '#1E3A5F',
+        'primary-light': '#2D4A6F',
+        'primary-dark': '#152A45',
+        'primary-subtle': '#E8EDF3',
+
+        // Accent Gold Palette
+        'accent': '#B8860B',
+        'accent-light': '#D4A84B',
+        'accent-dark': '#8B6914',
+        'accent-subtle': '#FBF6E8',
+
+        // Secondary Slate Palette
+        'secondary': '#64748B',
+        'secondary-light': '#94A3B8',
+        'secondary-dark': '#475569',
+        'secondary-subtle': '#F1F5F9',
+
+        // Neutral Scale
+        'background': '#FAFBFC',
+        'surface': '#FFFFFF',
+        'surface-elevated': '#FFFFFF',
+        'border': '#E2E8F0',
+        'border-subtle': '#F1F5F9',
+
+        // Text Hierarchy
+        'text-primary': '#1A202C',
+        'text-secondary': '#4A5568',
+        'text-tertiary': '#718096',
+        'text-inverse': '#FFFFFF',
+
+        // Semantic Colors
+        'success': '#2F855A',
+        'success-subtle': '#F0FFF4',
+        'error': '#C53030',
+        'error-subtle': '#FFF5F5',
+        'warning': '#B8860B',
+        'warning-subtle': '#FBF6E8',
+
+        // Legacy aliases for backwards compatibility
+        'cream': '#FAFBFC',
+        'off-white': '#FFFFFF',
+        'sea-mist': '#E2E8F0',
+        'stone-blue': '#94A3B8',
+        'driftwood': '#94A3B8',
+        'ocean-grey': '#64748B',
+        'deep-teal': '#1E3A5F',
+        'midnight-blue': '#1E3A5F',
+        'ocean-depth': '#152A45',
+        'charcoal-blue': '#1A202C',
+        'siren-gold': '#B8860B',
+        'lyre-bronze': '#8B6914',
       },
       fontFamily: {
-        serif: ['Lora', 'Crimson Pro', 'Georgia', 'serif'],
-        display: ['Crimson Pro', 'Lora', 'serif'],
+        serif: ['Georgia', 'Lora', 'Crimson Pro', 'serif'],
+        display: ['Georgia', 'Crimson Pro', 'Lora', 'serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'texture-paper': 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Cpath d=\'M0 0h1v1H0V0zm2 2h1v1H2V2z\' fill=\'%23C8D4DF\' fill-opacity=\'0.12\'/%3E%3C/svg%3E")',
-        'ocean-gradient': 'linear-gradient(135deg, #EEF2F6 0%, #DFE6ED 50%, #C8D4DF 100%)',
-        'siren-shimmer': 'linear-gradient(135deg, #597387 0%, #7A8FA3 50%, #B8A688 100%)',
+        'texture-paper': 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Cpath d=\'M0 0h1v1H0V0zm2 2h1v1H2V2z\' fill=\'%23E2E8F0\' fill-opacity=\'0.12\'/%3E%3C/svg%3E")',
+        'navy-gradient': 'linear-gradient(135deg, #1E3A5F 0%, #152A45 100%)',
+        'gold-shimmer': 'linear-gradient(135deg, #1E3A5F 0%, #64748B 50%, #B8860B 100%)',
       },
       animation: {
         'fade-in': 'fadeIn 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both',
@@ -63,11 +99,12 @@ module.exports = {
         },
       },
       boxShadow: {
-        'rustic-sm': '0 1px 3px 0 rgba(42, 63, 80, 0.08)',
-        'rustic-md': '0 3px 8px -2px rgba(42, 63, 80, 0.12)',
-        'rustic-lg': '0 8px 20px -4px rgba(42, 63, 80, 0.15)',
-        'rustic-xl': '0 16px 32px -8px rgba(42, 63, 80, 0.18)',
-        'ocean-glow': '0 4px 16px -4px rgba(122, 143, 163, 0.25)',
+        'sm': '0 1px 3px 0 rgba(30, 58, 95, 0.08)',
+        'md': '0 3px 8px -2px rgba(30, 58, 95, 0.12)',
+        'lg': '0 8px 20px -4px rgba(30, 58, 95, 0.15)',
+        'xl': '0 16px 32px -8px rgba(30, 58, 95, 0.18)',
+        'glow': '0 4px 16px -4px rgba(184, 134, 11, 0.25)',
+        'card': '0 4px 12px -2px rgba(30, 58, 95, 0.12)',
       },
     },
   },

@@ -165,9 +165,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           </button>
 
           <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-cream rounded-xl border-2 border-warm-stone overflow-hidden">
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-primary-subtle rounded-xl border border-border overflow-hidden">
               <Image
-                src="/SYRENABAROQUE.png"
+                src="/SyrenaStar.png"
                 alt="Syrena"
                 width={64}
                 height={64}
@@ -211,7 +211,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               <div>
                 <label className="text-label block mb-2">Username</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-terracotta" size={16} />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-accent" size={16} />
                   <input
                     type="text"
                     value={username}
@@ -225,7 +225,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
               <div>
                 <label className="text-label block mb-2">
-                  Full Name <span className="text-terracotta-light font-normal italic">(Optional)</span>
+                  Full Name <span className="text-accent-light font-normal italic">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -241,7 +241,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           <div>
             <label className="text-label block mb-2">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-terracotta" size={16} />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-accent" size={16} />
               <input
                 type="email"
                 value={email}
@@ -256,7 +256,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           <div>
             <label className="text-label block mb-2">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-terracotta" size={16} />
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-accent" size={16} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -269,7 +269,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-terracotta hover:text-rust transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-accent hover:text-accent-dark transition-colors"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
@@ -280,7 +280,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               </button>
             </div>
             {isSignUp && (
-              <p className="text-xs text-terracotta mt-1 italic">
+              <p className="text-xs text-secondary mt-1 italic">
                 Must be at least 6 characters
               </p>
             )}
@@ -309,7 +309,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           {!isSignUp && (
             <button
               type="button"
-              className="w-full text-sm text-terracotta hover:text-rust py-1 transition-colors font-serif italic"
+              className="w-full text-sm text-secondary hover:text-primary py-1 transition-colors font-serif italic"
               onClick={() => {
                 alert('Password recovery coming soon! Please contact support.');
               }}
@@ -320,10 +320,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-sand" />
+              <div className="w-full border-t-2 border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-off-white px-3 text-terracotta uppercase tracking-wider font-sans font-semibold">Or continue with</span>
+              <span className="bg-off-white px-3 text-secondary uppercase tracking-wider font-sans font-semibold">Or continue with</span>
             </div>
           </div>
 
@@ -355,7 +355,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         </form>
 
         {/* Footer */}
-        <div className="px-6 pb-6 text-center border-t-2 border-sand pt-4">
+        <div className="px-6 pb-6 text-center border-t-2 border-border pt-4">
           <button
             onClick={() => {
               setIsSignUp(!isSignUp);
@@ -363,7 +363,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               setSuccess('');
               resetForm();
             }}
-            className="text-sm text-terracotta hover:text-rust transition-colors font-serif"
+            className="text-sm text-secondary hover:text-primary transition-colors font-serif"
           >
             {isSignUp
               ? 'Already have an account? Sign in'

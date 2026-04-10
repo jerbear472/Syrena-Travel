@@ -312,9 +312,9 @@ export default function HomePage() {
         <div className="p-4 border-b-2 border-sea-mist hover:bg-sea-mist/30 transition-colors flex-shrink-0">
           <div className={`flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
             <div className="flex items-center gap-3">
-              <div className="relative w-14 h-14 flex-shrink-0 bg-cream rounded-xl shadow-rustic-sm border-2 border-stone-blue overflow-hidden flex items-center justify-center">
+              <div className="relative w-14 h-14 flex-shrink-0 bg-primary-subtle rounded-xl shadow-sm border border-border overflow-hidden flex items-center justify-center">
                 <Image
-                  src="/SYRENABAROQUE.png"
+                  src="/SyrenaStar.png"
                   alt="Syrena"
                   width={56}
                   height={56}
@@ -675,9 +675,9 @@ export default function HomePage() {
               {!isAuthenticated && (
                 <div className="absolute bottom-6 left-6 right-6 sm:right-auto card-minimal max-w-md animate-slide-up p-6 shadow-rustic-xl">
                   <div className="flex items-center gap-4 mb-5">
-                    <div className="relative w-20 h-20 bg-cream rounded-xl shadow-rustic-sm border-2 border-stone-blue overflow-hidden flex items-center justify-center">
+                    <div className="relative w-20 h-20 bg-primary-subtle rounded-xl shadow-sm border border-border overflow-hidden flex items-center justify-center">
                       <Image
-                        src="/SYRENABAROQUE.png"
+                        src="/SyrenaStar.png"
                         alt="Syrena"
                         width={80}
                         height={80}

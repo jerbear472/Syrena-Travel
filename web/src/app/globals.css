@@ -5,31 +5,48 @@
 
 @layer base {
   :root {
-    /* Muted Blue Rustic Color System - Siren & Lyre Theme */
-    --color-cream: #F5F7FA;
-    --color-off-white: #EEF2F6;
-    --color-sea-mist: #DFE6ED;
-    --color-stone-blue: #C8D4DF;
-    --color-driftwood: #A8B8C7;
-    --color-ocean-grey: #7A8FA3;
-    --color-deep-teal: #597387;
-    --color-midnight-blue: #3D5568;
-    --color-ocean-depth: #2A3F50;
-    --color-charcoal-blue: #1F2D3A;
+    /* Deep Navy & Antique Gold - Matching Mobile App Theme */
+    /* Neutral Scale */
+    --color-cream: #FAFBFC;
+    --color-off-white: #FFFFFF;
+    --color-sea-mist: #E2E8F0;
+    --color-stone-blue: #94A3B8;
+    --color-driftwood: #94A3B8;
+    --color-ocean-grey: #64748B;
+    --color-deep-teal: #1E3A5F;
+    --color-midnight-blue: #1E3A5F;
+    --color-ocean-depth: #152A45;
+    --color-charcoal-blue: #1A202C;
 
-    /* Accent Colors - Oceanic Palette */
-    --color-sage-blue: #7C9AA5;
-    --color-aqua-mist: #95B5BC;
-    --color-seafoam: #6B8B95;
+    /* Primary Navy Palette */
+    --color-primary: #1E3A5F;
+    --color-primary-light: #2D4A6F;
+    --color-primary-dark: #152A45;
+    --color-primary-subtle: #E8EDF3;
 
-    /* Siren & Lyre Accents */
-    --color-siren-gold: #B8A688;
-    --color-lyre-bronze: #9B8470;
+    /* Accent Gold Palette */
+    --color-accent: #B8860B;
+    --color-accent-light: #D4A84B;
+    --color-accent-dark: #8B6914;
+    --color-accent-subtle: #FBF6E8;
 
-    /* System Colors - Oceanic */
-    --color-success: #6B8B95;
-    --color-warning: #B8A688;
-    --color-error: #A67C8F;
+    /* Secondary Slate Palette */
+    --color-secondary: #64748B;
+    --color-secondary-light: #94A3B8;
+    --color-secondary-dark: #475569;
+    --color-secondary-subtle: #F1F5F9;
+
+    /* Siren & Lyre Accents - Updated to match mobile */
+    --color-siren-gold: #B8860B;
+    --color-lyre-bronze: #8B6914;
+
+    /* System Colors - Updated */
+    --color-success: #2F855A;
+    --color-success-subtle: #F0FFF4;
+    --color-warning: #B8860B;
+    --color-warning-subtle: #FBF6E8;
+    --color-error: #C53030;
+    --color-error-subtle: #FFF5F5;
 
     /* Spacing System */
     --space-xs: 0.5rem;
@@ -716,9 +733,9 @@
     100% { background-position: 0% center; }
   }
 
-  /* Siren's Shimmer Effect */
+  /* Siren's Shimmer Effect - Deep Navy to Antique Gold */
   .siren-shimmer {
-    background: linear-gradient(135deg, var(--color-deep-teal) 0%, var(--color-ocean-grey) 50%, var(--color-siren-gold) 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, var(--color-accent) 100%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
