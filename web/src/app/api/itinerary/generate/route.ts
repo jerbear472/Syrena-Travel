@@ -215,10 +215,11 @@ export async function POST(request: NextRequest) {
       'Design the itinerary. JSON only, real places only, geographic grouping is non-negotiable.',
     ].filter(Boolean).join('\n');
 
-    // Cap output to roughly what a 10-day plan with 4 places/day needs.
-    // Each place ≈ 80 tokens, narrative ≈ 70 tokens; 10 × (4×80 + 70) ≈ 3900.
+    // Haiku 4.5 — fast enough to stay well under the 60s Vercel cap on
+    // 10-day plans while still producing solid structured JSON + narratives.
+    // Sonnet 4.6 was timing out on longer trips.
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5',
       max_tokens: 4000,
       system: ITINERARY_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
