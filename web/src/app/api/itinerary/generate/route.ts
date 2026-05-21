@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { authFromRequest } from '@/lib/auth-server';
 
+// Vercel function execution limit. Sonnet generation + 40 Google verifies
+// can run 30–50s for a 10-day trip; 60s gives headroom.
+export const maxDuration = 60;
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
@@ -211,9 +215,11 @@ export async function POST(request: NextRequest) {
       'Design the itinerary. JSON only, real places only, geographic grouping is non-negotiable.',
     ].filter(Boolean).join('\n');
 
+    // Cap output to roughly what a 10-day plan with 4 places/day needs.
+    // Each place ≈ 80 tokens, narrative ≈ 70 tokens; 10 × (4×80 + 70) ≈ 3900.
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 6000,
+      max_tokens: 4000,
       system: ITINERARY_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     });
