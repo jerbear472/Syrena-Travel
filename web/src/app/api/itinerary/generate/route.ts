@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
     // 10-day plans while still producing solid structured JSON + narratives.
     // Sonnet 4.6 was timing out on longer trips.
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 4000,
       system: ITINERARY_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
