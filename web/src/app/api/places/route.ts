@@ -32,9 +32,12 @@ export async function GET(request: NextRequest) {
       if (detailsData.status === 'OK' && detailsData.result) {
         const details = detailsData.result;
 
-        // Get photo URLs
+        // Build photo URLs via our key-hiding proxy (absolute, since the mobile
+        // app renders these directly). See /api/photo.
+        const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://syrena-web-new.vercel.app')
+          .replace(/\/$/, '');
         const photos = details.photos?.slice(0, 3).map((photo: any) =>
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_API_KEY}`
+          `${SITE_URL}/api/photo?ref=${encodeURIComponent(photo.photo_reference)}&w=400`
         ) || [];
 
         const placeInfo = {

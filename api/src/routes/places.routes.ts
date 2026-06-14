@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verifyToken } from '../middleware/auth';
 import { Client } from '@googlemaps/google-maps-services-js';
+import { photoProxyUrl } from '../utils/photo';
 
 export const placesRouter = Router();
 
@@ -101,7 +102,7 @@ placesRouter.get('/', async (req, res) => {
         photos: details.photos
           ? details.photos.slice(0, 3).map(photo => {
               if (photo.photo_reference) {
-                return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photo.photo_reference}&key=${apiKey}`;
+                return photoProxyUrl(photo.photo_reference, 400);
               }
               return null;
             }).filter(url => url !== null)
@@ -228,7 +229,7 @@ placesRouter.get('/details', async (req, res) => {
       photos: details.photos
         ? details.photos.slice(0, 3).map(photo => {
             if (photo.photo_reference) {
-              return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photo.photo_reference}&key=${apiKey}`;
+              return photoProxyUrl(photo.photo_reference, 400);
             }
             return null;
           }).filter(url => url !== null)

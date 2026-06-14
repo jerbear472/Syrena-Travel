@@ -74,10 +74,16 @@ function cacheKey(p: PlaceInput): string {
   return `${name}|${p.lat.toFixed(2)}|${p.lng.toFixed(2)}`;
 }
 
+// Public origin of the web app, used to build absolute photo-proxy URLs.
+// Absolute (not relative) because the mobile app consumes these responses and
+// renders the URLs directly — a relative path won't resolve in React Native.
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://syrena-web-new.vercel.app')
+  .replace(/\/$/, '');
+
+// Build a URL to our own /api/photo proxy instead of embedding the API key.
 function photoUrl(ref: string | null, maxWidth: number): string | null {
   if (!ref) return null;
-  return `https://maps.googleapis.com/maps/api/place/photo` +
-    `?maxwidth=${maxWidth}&photoreference=${ref}&key=${GOOGLE_API_KEY}`;
+  return `${SITE_URL}/api/photo?ref=${encodeURIComponent(ref)}&w=${maxWidth}`;
 }
 
 interface CacheRow {

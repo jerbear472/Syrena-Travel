@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { Client } from '@googlemaps/google-maps-services-js';
+import { photoProxyUrl } from '../utils/photo';
 
 export const searchRouter = Router();
 
@@ -188,7 +189,7 @@ async function getPlaceDetails(place_id: string, res: Response) {
     const photos = place.photos
       ? place.photos.slice(0, 5).map(photo => {
           if (photo.photo_reference) {
-            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photo.photo_reference}&key=${apiKey}`;
+            return photoProxyUrl(photo.photo_reference, 800);
           }
           return null;
         }).filter(url => url !== null)

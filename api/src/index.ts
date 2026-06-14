@@ -6,15 +6,36 @@ import { userRouter } from './routes/user.routes';
 import { placesRouter } from './routes/places.routes';
 import { friendsRouter } from './routes/friends.routes';
 import { searchRouter } from './routes/search.routes';
+import { photoRouter } from './routes/photo.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
+// Fail fast on a missing JWT secret rather than discovering it at first login.
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET is not set. Refusing to start.');
+  process.exit(1);
+}
+
 const app: Application = express();
 const PORT = Number(process.env.PORT) || 5001;
 
-// Middleware
-app.use(cors());
+// CORS: restrict browser origins to an allowlist (env-overridable). Requests
+// with no Origin header (native mobile app, curl, server-to-server) are allowed
+// through — CORS only governs browsers. Wildcard `cors()` previously let any
+// site call the API from a victim's browser.
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS ||
+  'http://localhost:3000,https://syrena-web-new.vercel.app'
+).split(',').map(o => o.trim()).filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -102,6 +123,7 @@ app.use('/api/places', placesRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/place-details', searchRouter); // Alias for place details
+app.use('/api/photo', photoRouter);
 
 // Error handling middleware
 app.use(errorHandler);
