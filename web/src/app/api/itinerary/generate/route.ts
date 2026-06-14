@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { authFromRequest } from '@/lib/auth-server';
+import { verifyAndEnrichPlace, EnrichedPlace } from '@/lib/place-cache';
 
 // Vercel function execution limit. Sonnet generation + 40 Google verifies
 // can run 30–50s for a 10-day trip; 60s gives headroom.
@@ -9,8 +10,6 @@ export const maxDuration = 60;
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
-
-const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 interface LlmPlace {
   name: string;
@@ -34,83 +33,70 @@ interface LlmItinerary {
   days: LlmDay[];
 }
 
-interface GoogleVerifiedPlace {
-  verified: boolean;
-  google_name: string | null;
-  photo_url: string | null;
-  price_level: number | null;
-  rating: number | null;
-  google_place_id: string | null;
-  address: string | null;
-  lat: number | null;
-  lng: number | null;
+// Place verification + enrichment is shared across the itinerary, onboarding,
+// and source-of-journey routes and backed by a 30-day Google Places cache
+// (web/src/lib/place-cache.ts). Itinerary photos render at ~600px.
+const verifyAndEnrichWithGoogle = (place: LlmPlace) =>
+  verifyAndEnrichPlace(place, { photoMaxWidth: 600 });
+
+// Great-circle distance in km between two coordinates.
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-async function verifyAndEnrichWithGoogle(place: LlmPlace): Promise<GoogleVerifiedPlace> {
-  const notFound: GoogleVerifiedPlace = {
-    verified: false, google_name: null, photo_url: null,
-    price_level: null, rating: null, google_place_id: null,
-    address: null, lat: null, lng: null,
-  };
-  if (!GOOGLE_API_KEY) return notFound;
+// Reorder a day's stops along a sensible visiting path so the route doesn't
+// cross town and double back. Greedy nearest-neighbor: keep the first place
+// as the anchor (often the intended morning start), then always hop to the
+// closest remaining stop. Deterministic — does not depend on the model
+// ordering the places correctly.
+function orderByProximity<T extends { lat?: number | null; lng?: number | null }>(
+  places: T[]
+): T[] {
+  const hasCoords = (p: T): p is T & { lat: number; lng: number } =>
+    typeof p.lat === 'number' && typeof p.lng === 'number';
 
-  try {
-    const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json` +
-      `?input=${encodeURIComponent(place.name + ', ' + place.address)}` +
-      `&inputtype=textquery` +
-      `&locationbias=circle:5000@${place.lat},${place.lng}` +
-      `&fields=place_id` +
-      `&key=${GOOGLE_API_KEY}`;
-    const findRes = await fetch(findUrl);
-    const findData = await findRes.json();
+  const routable = places.filter(hasCoords);
+  const unroutable = places.filter(p => !hasCoords(p));
+  if (routable.length < 3) return places;
 
-    if (findData.status === 'OVER_QUERY_LIMIT' || findData.status === 'REQUEST_DENIED') {
-      return { ...notFound, verified: true };
-    }
-    if (findData.status !== 'OK' || !findData.candidates?.length) {
-      return notFound;
-    }
-    const placeId = findData.candidates[0].place_id;
-
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json` +
-      `?place_id=${placeId}` +
-      `&fields=name,rating,price_level,photos,formatted_address,geometry` +
-      `&key=${GOOGLE_API_KEY}`;
-    const detailsRes = await fetch(detailsUrl);
-    const detailsData = await detailsRes.json();
-
-    if (detailsData.status !== 'OK' || !detailsData.result) {
-      return { ...notFound, verified: true, google_place_id: placeId };
-    }
-    const d = detailsData.result;
-    const photoUrl = d.photos?.length
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photoreference=${d.photos[0].photo_reference}&key=${GOOGLE_API_KEY}`
-      : null;
-
-    return {
-      verified: true,
-      google_name: d.name || null,
-      photo_url: photoUrl,
-      price_level: d.price_level ?? null,
-      rating: d.rating ?? null,
-      google_place_id: placeId,
-      address: d.formatted_address || null,
-      lat: d.geometry?.location?.lat ?? null,
-      lng: d.geometry?.location?.lng ?? null,
-    };
-  } catch (err) {
-    console.error(`[Itinerary] Google verify failed for ${place.name}:`, err);
-    return notFound;
+  const remaining = [...routable];
+  const ordered = [remaining.shift()!];
+  while (remaining.length) {
+    const last = ordered[ordered.length - 1];
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    remaining.forEach((p, i) => {
+      const d = haversineKm(last, p);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    });
+    ordered.push(remaining.splice(bestIdx, 1)[0]);
   }
+  // Coord-less stops can't be routed — keep them at the end.
+  return [...ordered, ...unroutable];
 }
 
-const ITINERARY_SYSTEM_PROMPT = `You are Syrena — part concierge, part poet, part that friend who somehow always knows the perfect spot. You're building MULTI-DAY ITINERARIES now, not single recommendations. Same impeccable taste, same warm-witty voice, same zero pretension.
+const ITINERARY_SYSTEM_PROMPT = `You are Pocket Compass — part concierge, part poet, part that friend who somehow always knows the perfect spot. You're building MULTI-DAY ITINERARIES now, not single recommendations. Same impeccable taste, same warm-witty voice, same zero pretension.
 
 YOUR JOB:
-Take a user's trip prompt (destination, length, constraints, preferences) and design a day-by-day itinerary. Each day gets a short narrative in Syrena voice and a tight cluster of 3–5 real places. Geographic intelligence is everything — places within a day must be walkable or short-drive from each other. Don't make someone cross a city twice in one day.
+Take a user's trip prompt (destination, length, constraints, preferences) and design a day-by-day itinerary. Each day gets a short narrative in Pocket Compass voice and a tight cluster of 3–5 real places. Geographic intelligence is everything — places within a day must be walkable or short-drive from each other. Don't make someone cross a city twice in one day.
 
 GEOGRAPHIC GROUPING (CRITICAL):
 - Within a day: cluster places in the SAME neighborhood or adjacent neighborhoods. A morning cafe in the Marais, an afternoon gallery in the Marais, a wine bar in the Marais — yes. A cafe in Brooklyn and a dinner in Tribeca — no, split across days.
+- Order the stops within a day as a CONTINUOUS one-way path — each stop should be near the previous one, progressing in a single direction across the neighborhood. Never go across town, back, then across again. Think of it as a walking line, not a star from a hub.
 - Between days: order days to minimize backtracking. Day 1 east side, Day 2 east side, Day 3 transit-day cross-town, Day 4 west side — yes. Day 1 east, Day 2 west, Day 3 east — no.
 - Multi-city trips: allocate days proportionally. 7 days across Lisbon + Porto = 4 in Lisbon, 1 transit, 2 in Porto (or similar). Always include a transit day if cities are >2 hours apart.
 - Respect the user's pace: "relaxed" = 3 places/day, "packed" = 5/day, default = 4.
@@ -158,6 +144,55 @@ OUTPUT FORMAT — JSON ONLY, no markdown fences:
     }
   ]
 }`;
+
+// Structured-outputs schema: the API guarantees the response text is valid
+// JSON conforming to this shape, so no fence-stripping or parse retries are
+// needed. Keep in sync with LlmItinerary above. (Structured outputs forbid
+// min/max numeric constraints and require additionalProperties: false.)
+const ITINERARY_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    days: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          day_number: { type: 'integer' },
+          narrative: { type: 'string' },
+          places: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                neighborhood: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+                category: {
+                  type: 'string',
+                  enum: [
+                    'restaurant', 'cafe', 'bar', 'hotel', 'viewpoint',
+                    'nature', 'shopping', 'museum', 'hidden-gem',
+                  ],
+                },
+                address: { type: 'string' },
+                lat: { type: 'number' },
+                lng: { type: 'number' },
+                why: { type: 'string' },
+                description: { type: 'string' },
+              },
+              required: ['name', 'neighborhood', 'category', 'address', 'lat', 'lng', 'why', 'description'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['day_number', 'narrative', 'places'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['title', 'days'],
+  additionalProperties: false,
+};
 
 interface GenerateBody {
   prompt: string;
@@ -218,26 +253,35 @@ export async function POST(request: NextRequest) {
     // Haiku 4.5 — fast enough to stay well under the 60s Vercel cap on
     // 10-day plans while still producing solid structured JSON + narratives.
     // Sonnet 4.6 was timing out on longer trips.
+    // Structured outputs (output_config.format) guarantee schema-valid JSON;
+    // max_tokens 12000 because 4000 truncated mid-JSON on week-long trips.
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      max_tokens: 12000,
       system: ITINERARY_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
+      output_config: {
+        format: { type: 'json_schema', schema: ITINERARY_SCHEMA },
+      },
     });
+
+    if (message.stop_reason === 'max_tokens') {
+      // Output hit the token ceiling — JSON is incomplete. Surface a clear,
+      // actionable error instead of a parse failure.
+      return NextResponse.json(
+        { error: 'That trip is too big to plan in one go — try fewer days or a more relaxed pace.' },
+        { status: 502 }
+      );
+    }
 
     const textBlock = message.content.find(b => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
       return NextResponse.json({ error: 'Empty AI response' }, { status: 502 });
     }
 
-    let raw = textBlock.text.trim();
-    if (raw.startsWith('```')) {
-      raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-    }
-
     let parsed: LlmItinerary;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(textBlock.text);
     } catch {
       return NextResponse.json({ error: 'Model returned malformed JSON' }, { status: 502 });
     }
@@ -257,7 +301,7 @@ export async function POST(request: NextRequest) {
     const enrichedDays = parsed.days.map(day => ({
       day_number: day.day_number,
       narrative: day.narrative,
-      places: [] as Array<LlmPlace & Partial<GoogleVerifiedPlace>>,
+      places: [] as Array<LlmPlace & Partial<EnrichedPlace>>,
     }));
 
     allPlaces.forEach((x, i) => {
@@ -279,6 +323,13 @@ export async function POST(request: NextRequest) {
         rating: g.rating,
         google_place_id: g.google_place_id,
       });
+    });
+
+    // Reorder each day's stops along a sensible path using the real
+    // (Google-verified) coordinates, so the on-map route doesn't zig-zag
+    // across town and back.
+    enrichedDays.forEach(d => {
+      d.places = orderByProximity(d.places);
     });
 
     // Drop any day with zero places after verification

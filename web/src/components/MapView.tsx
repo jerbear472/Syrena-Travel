@@ -75,6 +75,13 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   const clustererRef = useRef<any>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const allMarkersRef = useRef<google.maps.Marker[]>([]);
+  // Map-click Places lookups are debounced + cached: rapid successive clicks
+  // (moving the pin before settling) cancel the prior pending lookup, and
+  // repeat clicks on the same spot reuse the result — both avoid re-spending
+  // the 2–3 Places calls each lookup costs.
+  const placeLookupCache = useRef<Map<string, any>>(new Map());
+  const clickDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lookupTokenRef = useRef(0);
   const [currentZoom, setCurrentZoom] = useState(14);
   const [hasNavigated, setHasNavigated] = useState(false);
   const [placeDetails, setPlaceDetails] = useState<any>(null);
@@ -283,7 +290,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
     console.log('Setting up map click listener. isAuthenticated:', isAuthenticated);
 
-    const clickListener = map.addListener('click', async (event: google.maps.MapMouseEvent) => {
+    const clickListener = map.addListener('click', (event: google.maps.MapMouseEvent) => {
       console.log('Map clicked!', { isAuthenticated, latLng: event.latLng });
       if (event.latLng) {
         if (!isAuthenticated) {
@@ -307,16 +314,39 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         setTimeout(() => setMarkerAnimation({ scale: 1.05, opacity: 1 }), 300);
         setTimeout(() => setMarkerAnimation({ scale: 1, opacity: 1 }), 400);
 
-        // Fetch place details from Google Places API
-        const details = await fetchPlaceDetails(lat, lng);
-        setPlaceDetails(details);
-
+        // Open the modal immediately; place details stream in once resolved
+        // (the modal renders a loading state via loadingPlaceDetails).
         setShowAddPlaceModal(true);
+
+        // Reuse a recent lookup for the same spot — no Places call needed.
+        const cacheKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        const cached = placeLookupCache.current.get(cacheKey);
+        if (cached !== undefined) {
+          setPlaceDetails(cached);
+          setLoadingPlaceDetails(false);
+          return;
+        }
+
+        // Debounce the Places lookup so rapid re-clicks only bill the final
+        // position. A token guards against a superseded in-flight lookup
+        // overwriting newer state.
+        if (clickDebounceRef.current) clearTimeout(clickDebounceRef.current);
+        const token = ++lookupTokenRef.current;
+        setLoadingPlaceDetails(true);
+
+        clickDebounceRef.current = setTimeout(async () => {
+          const details = await fetchPlaceDetails(lat, lng);
+          placeLookupCache.current.set(cacheKey, details);
+          if (token === lookupTokenRef.current) {
+            setPlaceDetails(details);
+          }
+        }, 350);
       }
     });
 
     return () => {
       google.maps.event.removeListener(clickListener);
+      if (clickDebounceRef.current) clearTimeout(clickDebounceRef.current);
     };
   }, [map, isAuthenticated]);
 

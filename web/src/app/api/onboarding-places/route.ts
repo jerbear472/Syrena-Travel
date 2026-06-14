@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { verifyAndEnrichPlace } from '@/lib/place-cache';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
-
-const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 const ONBOARDING_SYSTEM_PROMPT = `You are Syrena, an AI travel concierge with impeccable taste. You are creating a welcome collection of 10 curated places for a new user. Your aesthetic is:
 
@@ -57,88 +56,12 @@ interface ClaudePlace {
   why: string;
 }
 
-interface GoogleVerifiedPlace {
-  verified: boolean;
-  google_name: string | null;
-  photo_url: string | null;
-  price_level: number | null;
-  rating: number | null;
-  google_place_id: string | null;
-  address: string | null;
-  lat: number | null;
-  lng: number | null;
-}
-
-async function verifyAndEnrichWithGoogle(place: ClaudePlace): Promise<GoogleVerifiedPlace> {
-  const notFound: GoogleVerifiedPlace = {
-    verified: false, google_name: null, photo_url: null,
-    price_level: null, rating: null, google_place_id: null,
-    address: null, lat: null, lng: null,
-  };
-
-  if (!GOOGLE_API_KEY) return { ...notFound, verified: true }; // Trust Claude when no key
-
-  try {
-    // Find the place using text search with location bias
-    const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json` +
-      `?input=${encodeURIComponent(place.name + ', ' + place.address)}` +
-      `&inputtype=textquery` +
-      `&locationbias=circle:5000@${place.lat},${place.lng}` +
-      `&fields=place_id` +
-      `&key=${GOOGLE_API_KEY}`;
-
-    const findResponse = await fetch(findUrl);
-    const findData = await findResponse.json();
-
-    // If rate-limited or API error, trust Claude rather than dropping places
-    if (findData.status === 'OVER_QUERY_LIMIT' || findData.status === 'REQUEST_DENIED') {
-      return { ...notFound, verified: true };
-    }
-
-    if (findData.status !== 'OK' || !findData.candidates?.length) {
-      return notFound;
-    }
-
-    const placeId = findData.candidates[0].place_id;
-
-    // Get full details including geometry for real coordinates
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json` +
-      `?place_id=${placeId}` +
-      `&fields=name,rating,price_level,photos,formatted_address,geometry` +
-      `&key=${GOOGLE_API_KEY}`;
-
-    const detailsResponse = await fetch(detailsUrl);
-    const detailsData = await detailsResponse.json();
-
-    if (detailsData.status === 'OVER_QUERY_LIMIT' || detailsData.status === 'REQUEST_DENIED') {
-      return { ...notFound, verified: true, google_place_id: placeId };
-    }
-
-    if (detailsData.status !== 'OK' || !detailsData.result) {
-      return { ...notFound, verified: true, google_place_id: placeId };
-    }
-
-    const details = detailsData.result;
-    const photoUrl = details.photos?.length
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${details.photos[0].photo_reference}&key=${GOOGLE_API_KEY}`
-      : null;
-
-    return {
-      verified: true,
-      google_name: details.name || null,
-      photo_url: photoUrl,
-      price_level: details.price_level || null,
-      rating: details.rating || null,
-      google_place_id: placeId,
-      address: details.formatted_address || null,
-      lat: details.geometry?.location?.lat || null,
-      lng: details.geometry?.location?.lng || null,
-    };
-  } catch (error) {
-    console.error(`[Onboarding] Google verification failed for ${place.name}:`, error);
-    return notFound;
-  }
-}
+// Verification + enrichment is shared across the onboarding, itinerary, and
+// guide routes and backed by a 30-day Google Places cache
+// (web/src/lib/place-cache.ts). Onboarding renders small thumbnails (400px)
+// and trusts Claude when Google is unavailable.
+const verifyAndEnrichWithGoogle = (place: ClaudePlace) =>
+  verifyAndEnrichPlace(place, { photoMaxWidth: 400, trustWhenUnavailable: true });
 
 export async function POST(request: NextRequest) {
   try {
