@@ -62,8 +62,17 @@ export async function POST(
 
   const existingSet = new Set((existing || []).map((p: { google_place_id: string }) => p.google_place_id));
 
+  // Also dedupe within this batch: the same place can appear on multiple days,
+  // so guard against inserting it twice in a single save.
+  const seenInBatch = new Set<string>();
+
   const rows = allPlaces
-    .filter(p => !p.google_place_id || !existingSet.has(p.google_place_id))
+    .filter(p => {
+      if (!p.google_place_id) return true; // can't dedupe id-less places
+      if (existingSet.has(p.google_place_id) || seenInBatch.has(p.google_place_id)) return false;
+      seenInBatch.add(p.google_place_id);
+      return true;
+    })
     .map(p => ({
       user_id: auth.userId,
       name: p.name || 'Unnamed place',

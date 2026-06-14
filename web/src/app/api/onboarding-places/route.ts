@@ -160,8 +160,8 @@ export async function POST(request: NextRequest) {
           // Use Google's ground truth for coordinates, address, and name
           name: google.google_name || place.name,
           address: google.address || place.address,
-          lat: google.lat || place.lat,
-          lng: google.lng || place.lng,
+          lat: google.lat ?? place.lat,
+          lng: google.lng ?? place.lng,
           photo_url: google.photo_url,
           price_level: google.price_level,
           rating: google.rating,

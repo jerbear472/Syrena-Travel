@@ -166,9 +166,10 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     }
   }, [isLoaded, map, isAuthenticated, showOnlyFriends, selectedFriendId, categoryFilter]);
 
-  // Update markers when map or saved places change (but NOT on zoom changes to prevent flashing)
+  // Update markers when map or saved places change (but NOT on zoom changes to prevent flashing).
+  // Runs on empty too, so switching to a filter/friend with no places clears the old pins.
   useEffect(() => {
-    if (map && savedPlaces.length > 0) {
+    if (map) {
       updateMarkers(savedPlaces, currentZoom);
     }
   }, [map, savedPlaces]);
@@ -336,7 +337,9 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
         clickDebounceRef.current = setTimeout(async () => {
           const details = await fetchPlaceDetails(lat, lng);
-          placeLookupCache.current.set(cacheKey, details);
+          // Only cache a real hit — caching null would permanently suppress a
+          // retry for this spot after a transient Places failure this session.
+          if (details) placeLookupCache.current.set(cacheKey, details);
           if (token === lookupTokenRef.current) {
             setPlaceDetails(details);
           }

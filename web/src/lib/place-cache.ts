@@ -146,6 +146,12 @@ export async function verifyAndEnrichPlace(
   // 1) Read-through: serve a fresh cached answer (positive OR negative) without
   //    touching Google. Negative hits suppress repeat lookups of hallucinated
   //    places, which were silently re-querying every generation.
+  // Holds a cached row that exists but is past its TTL. We still prefer a live
+  // refresh, but if Google turns out to be rate-limited below, serving this
+  // slightly-stale data beats returning a bare verified stub with no
+  // photo/rating/coords.
+  let staleRow: CacheRow | null = null;
+
   const client = cacheClient();
   if (client) {
     try {
@@ -160,6 +166,7 @@ export async function verifyAndEnrichPlace(
         if (age < CACHE_TTL_MS) {
           return rowToEnriched(row, photoMaxWidth);
         }
+        staleRow = row;
       }
     } catch (err) {
       console.error('[place-cache] read failed:', err);
@@ -178,9 +185,10 @@ export async function verifyAndEnrichPlace(
     const findRes = await fetch(findUrl);
     const findData = await findRes.json();
 
-    // Transient (quota / denied) — trust Claude but DON'T cache, so we retry.
+    // Transient (quota / denied) — DON'T cache, so we retry. Prefer slightly
+    // stale cached data over a bare trusted stub when we have it.
     if (findData.status === 'OVER_QUERY_LIMIT' || findData.status === 'REQUEST_DENIED') {
-      return { ...NOT_FOUND, verified: true };
+      return staleRow ? rowToEnriched(staleRow, photoMaxWidth) : { ...NOT_FOUND, verified: true };
     }
     // Definitive "not found" — cache the negative result.
     if (findData.status !== 'OK' || !findData.candidates?.length) {
@@ -202,7 +210,9 @@ export async function verifyAndEnrichPlace(
     const detailsData = await detailsRes.json();
 
     if (detailsData.status === 'OVER_QUERY_LIMIT' || detailsData.status === 'REQUEST_DENIED') {
-      // Existence confirmed, details unavailable — trust but don't cache.
+      // Existence confirmed, details unavailable — don't cache. Prefer stale
+      // cached detail over a bare stub when available.
+      if (staleRow) return rowToEnriched(staleRow, photoMaxWidth);
       return { ...NOT_FOUND, verified: true, google_place_id: placeId };
     }
     if (detailsData.status !== 'OK' || !detailsData.result) {
