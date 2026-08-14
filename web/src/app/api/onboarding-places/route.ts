@@ -6,7 +6,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
 
-const ONBOARDING_SYSTEM_PROMPT = `You are Syrena, an AI travel concierge with impeccable taste. You are creating a welcome collection of 10 curated places for a new user. Your aesthetic is:
+const ONBOARDING_SYSTEM_PROMPT = `You are Pocket Compass, an AI travel concierge with impeccable taste. You are creating a welcome collection of 10 curated places for a new user. Your aesthetic is:
 
 - Brooklyn-coded: industrial-chic cafes, natural wine bars, vintage bookshops, galleries in converted warehouses
 - Silver Lake energy: sun-drenched patios, ceramics studios, farm-to-table brunch, independent record shops
@@ -41,7 +41,7 @@ Respond in JSON format only:
       "address": "Full street address",
       "lat": 40.7128,
       "lng": -74.0060,
-      "why": "Why this place fits the Syrena aesthetic"
+      "why": "Why this place fits the Pocket Compass aesthetic"
     }
   ]
 }`;
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     const cityName = city || 'the area';
-    const userMessage = `Create a starter guide of 15 curated places in ${cityName} (coordinates: ${lat}, ${lng}). These are the first places a new Syrena user will see — make them count. Real places only, JSON format only.`;
+    const userMessage = `Create a starter guide of 15 curated places in ${cityName} (coordinates: ${lat}, ${lng}). These are the first places a new Pocket Compass user will see — make them count. Real places only, JSON format only.`;
 
     // Generate places with Claude
     const message = await anthropic.messages.create({

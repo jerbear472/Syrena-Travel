@@ -14,14 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Syrena Travel - Discover Places Your Friends Love",
-  description: "Social travel map platform to save and share favorite places with friends",
+  title: "Pocket Compass - Places Worth Finding",
+  description: "Your field journal for travel: an AI guide with taste, day-by-day trip itineraries, and a map of places you and your friends love",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
-  themeColor: "#000000",
+  themeColor: "#FAF6EF",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Syrena"
+    statusBarStyle: "default",
+    title: "Pocket Compass"
   }
 };
 

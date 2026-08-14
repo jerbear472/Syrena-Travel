@@ -54,7 +54,7 @@ export default function SetupPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Syrena Travel Setup</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Pocket Compass Setup</h1>
           <p className="text-gray-600 mb-8">Let's get your travel map platform up and running!</p>
 
           {/* Status Cards */}
@@ -198,7 +198,7 @@ export default function SetupPage() {
                 href="/"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all transform hover:scale-105"
               >
-                Launch Syrena Travel <ArrowRight className="w-5 h-5" />
+                Launch Pocket Compass <ArrowRight className="w-5 h-5" />
               </Link>
               <p className="text-sm text-gray-500 mt-3">Everything is ready! Start exploring.</p>
             </div>

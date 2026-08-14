@@ -85,12 +85,12 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { id } = await params;
   const { token } = await searchParams;
-  if (!token) return { title: 'Syrena Travel — Itinerary' };
+  if (!token) return { title: 'Pocket Compass — Itinerary' };
   const itin = await loadItinerary(id, token);
-  if (!itin) return { title: 'Syrena Travel — Itinerary' };
+  if (!itin) return { title: 'Pocket Compass — Itinerary' };
   return {
-    title: `${itin.title} — Syrena Travel`,
-    description: `${itin.num_days}-day trip to ${itin.destination}, planned with Syrena.`,
+    title: `${itin.title} — Pocket Compass`,
+    description: `${itin.num_days}-day trip to ${itin.destination}, planned with Pocket Compass.`,
   };
 }
 
@@ -113,10 +113,10 @@ export default async function ItineraryPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-navy-gradient text-text-inverse">
+      <header className="bg-compass-gradient text-text-inverse">
         <div className="max-w-5xl mx-auto px-6 pt-16 pb-12">
           <div className="text-xs tracking-[0.3em] uppercase text-accent-light mb-4">
-            Syrena Travel
+            Pocket Compass
           </div>
           <h1 className="font-display text-5xl md:text-6xl leading-tight mb-4">
             {itin.title}
@@ -237,16 +237,16 @@ export default async function ItineraryPage({
       <footer className="bg-primary-subtle border-t border-border mt-12">
         <div className="max-w-5xl mx-auto px-6 py-10 text-center">
           <div className="font-display text-2xl text-primary mb-2">
-            Plan your own trip with Syrena
+            Plan your own trip with Pocket Compass
           </div>
           <p className="text-text-secondary mb-4">
             AI-generated itineraries, hand-picked places, geographically thoughtful.
           </p>
           <a
-            href="https://apps.apple.com/app/syrena-travel"
+            href="/"
             className="inline-block px-6 py-3 rounded-xl bg-primary text-text-inverse font-medium hover:bg-primary-dark transition-colors"
           >
-            Get Syrena Travel
+            Open Pocket Compass
           </a>
         </div>
       </footer>

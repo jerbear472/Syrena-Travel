@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
-import Image from 'next/image';
+import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, Compass } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -82,7 +81,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               resetForm();
             }, 5000);
           } else {
-            setSuccess('Account created! Welcome to Syrena!');
+            setSuccess('Account created! Welcome to Pocket Compass!');
             setTimeout(() => {
               onSuccess();
             }, 2000);
@@ -165,14 +164,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           </button>
 
           <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-primary-subtle rounded-xl border border-border overflow-hidden">
-              <Image
-                src="/SyrenaStar.png"
-                alt="Syrena"
-                width={64}
-                height={64}
-                className="object-cover w-full h-full"
-              />
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-compass-gradient rounded-xl shadow-rustic-md overflow-hidden">
+              <Compass className="text-white" size={36} strokeWidth={1.5} />
             </div>
             <h2 className="heading-2 mb-2">
               {isSignUp ? 'Create Account' : 'Welcome Back'}

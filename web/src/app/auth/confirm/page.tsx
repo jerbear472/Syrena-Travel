@@ -448,7 +448,7 @@ export default function AuthConfirmPage() {
               href="syrena://"
               style={{
                 display: 'inline-block',
-                background: '#1E3A5F',
+                background: '#D95D39',
                 color: 'white',
                 padding: '14px 32px',
                 borderRadius: '12px',
@@ -457,7 +457,7 @@ export default function AuthConfirmPage() {
                 fontSize: '16px',
               }}
             >
-              Open Syrena App
+              Open Pocket Compass
             </a>
           </>
         )}
@@ -501,7 +501,7 @@ export default function AuthConfirmPage() {
               href="syrena://"
               style={{
                 display: 'inline-block',
-                background: '#1E3A5F',
+                background: '#D95D39',
                 color: 'white',
                 padding: '14px 32px',
                 borderRadius: '12px',

@@ -5,48 +5,50 @@
 
 @layer base {
   :root {
-    /* Deep Navy & Antique Gold - Matching Mobile App Theme */
+    /* Field Journal - warm parchment, terracotta & amber (matches mobile) */
     /* Neutral Scale */
-    --color-cream: #FAFBFC;
+    --color-cream: #FAF6EF;
     --color-off-white: #FFFFFF;
-    --color-sea-mist: #E2E8F0;
-    --color-stone-blue: #94A3B8;
-    --color-driftwood: #94A3B8;
-    --color-ocean-grey: #64748B;
-    --color-deep-teal: #1E3A5F;
-    --color-midnight-blue: #1E3A5F;
-    --color-ocean-depth: #152A45;
-    --color-charcoal-blue: #1A202C;
+    --color-sea-mist: #E8E0D2;
+    --color-stone-blue: #CFC5B2;
+    --color-driftwood: #98948B;
+    --color-ocean-grey: #6D6A63;
+    --color-deep-teal: #D95D39;
+    --color-midnight-blue: #2C2A26;
+    --color-ocean-depth: #4E4B45;
+    --color-charcoal-blue: #2C2A26;
 
-    /* Primary Navy Palette */
-    --color-primary: #1E3A5F;
-    --color-primary-light: #2D4A6F;
-    --color-primary-dark: #152A45;
-    --color-primary-subtle: #E8EDF3;
+    /* Primary Terracotta Palette */
+    --color-primary: #D95D39;
+    --color-primary-light: #E77A57;
+    --color-primary-dark: #B34527;
+    --color-primary-subtle: #FBE9E2;
 
-    /* Accent Gold Palette */
-    --color-accent: #B8860B;
-    --color-accent-light: #D4A84B;
-    --color-accent-dark: #8B6914;
-    --color-accent-subtle: #FBF6E8;
+    /* Accent Amber Palette */
+    --color-accent: #E9A23B;
+    --color-accent-light: #F2B95C;
+    --color-accent-dark: #C77F1F;
+    --color-accent-subtle: #FCF1DE;
 
-    /* Secondary Slate Palette */
-    --color-secondary: #64748B;
-    --color-secondary-light: #94A3B8;
-    --color-secondary-dark: #475569;
-    --color-secondary-subtle: #F1F5F9;
+    /* Secondary Warm Stone Palette */
+    --color-secondary: #6D6A63;
+    --color-secondary-light: #98948B;
+    --color-secondary-dark: #4E4B45;
+    --color-secondary-subtle: #F3F0EA;
 
-    /* Siren & Lyre Accents - Updated to match mobile */
-    --color-siren-gold: #B8860B;
-    --color-lyre-bronze: #8B6914;
+    /* Brand accents (legacy names) */
+    --color-siren-gold: #E9A23B;
+    --color-lyre-bronze: #C77F1F;
+    --color-aqua-mist: #48BB78;
+    --color-seafoam: #EDF7EF;
 
-    /* System Colors - Updated */
+    /* System Colors */
     --color-success: #2F855A;
-    --color-success-subtle: #F0FFF4;
-    --color-warning: #B8860B;
-    --color-warning-subtle: #FBF6E8;
+    --color-success-subtle: #EDF7EF;
+    --color-warning: #E9A23B;
+    --color-warning-subtle: #FCF1DE;
     --color-error: #C53030;
-    --color-error-subtle: #FFF5F5;
+    --color-error-subtle: #FBEFEA;
 
     /* Spacing System */
     --space-xs: 0.5rem;
@@ -74,12 +76,12 @@
     --radius-xl: 1rem;      /* 16px */
     --radius-full: 9999px;
 
-    /* Shadows - Cool and Subtle */
-    --shadow-sm: 0 1px 3px 0 rgba(42, 63, 80, 0.08);
-    --shadow-md: 0 3px 8px -2px rgba(42, 63, 80, 0.12);
-    --shadow-lg: 0 8px 20px -4px rgba(42, 63, 80, 0.15);
-    --shadow-xl: 0 16px 32px -8px rgba(42, 63, 80, 0.18);
-    --shadow-ocean: 0 4px 16px -4px rgba(122, 143, 163, 0.25);
+    /* Shadows - Warm and Subtle */
+    --shadow-sm: 0 1px 3px 0 rgba(58, 46, 37, 0.08);
+    --shadow-md: 0 3px 8px -2px rgba(58, 46, 37, 0.12);
+    --shadow-lg: 0 8px 20px -4px rgba(58, 46, 37, 0.15);
+    --shadow-xl: 0 16px 32px -8px rgba(58, 46, 37, 0.18);
+    --shadow-ocean: 0 4px 16px -4px rgba(233, 162, 59, 0.25);
   }
 
   * {
@@ -138,7 +140,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(223, 230, 237, 0.4) 0%, rgba(200, 212, 223, 0.2) 100%);
+    background: linear-gradient(135deg, rgba(252, 241, 222, 0.4) 0%, rgba(251, 233, 226, 0.2) 100%);
     pointer-events: none;
     border-radius: var(--radius-lg);
     opacity: 0;
@@ -192,18 +194,18 @@
   }
 
   .btn-primary {
-    background: var(--color-midnight-blue);
-    color: var(--color-cream);
+    background: var(--color-primary);
+    color: #FFFFFF;
     box-shadow: var(--shadow-sm);
-    border: 1.5px solid var(--color-deep-teal);
+    border: 1.5px solid var(--color-primary-dark);
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
                 box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
                 background-color 0.25s ease;
   }
 
   .btn-primary:hover {
-    background: var(--color-deep-teal);
-    box-shadow: 0 6px 20px -4px rgba(61, 85, 104, 0.4);
+    background: var(--color-primary-dark);
+    box-shadow: 0 6px 20px -4px rgba(217, 93, 57, 0.4);
     transform: translateY(-2px);
   }
 
@@ -338,7 +340,7 @@
   .text-body {
     font-size: var(--text-base);
     line-height: 1.7;
-    color: var(--color-deep-teal);
+    color: var(--color-ocean-depth);
   }
 
   .text-caption {
@@ -391,10 +393,10 @@
   }
 
   .nav-item-clean.active {
-    background: var(--color-midnight-blue);
-    color: var(--color-cream);
-    border-color: var(--color-deep-teal);
-    box-shadow: 0 4px 12px -2px rgba(61, 85, 104, 0.3);
+    background: var(--color-primary);
+    color: #FFFFFF;
+    border-color: var(--color-primary-dark);
+    box-shadow: 0 4px 12px -2px rgba(217, 93, 57, 0.3);
     transform: translateX(0);
   }
 
@@ -733,7 +735,8 @@
     100% { background-position: 0% center; }
   }
 
-  /* Siren's Shimmer Effect - Deep Navy to Antique Gold */
+  /* Compass Shimmer Effect - Terracotta to Amber */
+  .compass-shimmer,
   .siren-shimmer {
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, var(--color-accent) 100%);
     background-clip: text;

@@ -8,13 +8,12 @@ import {
   MapPin, ArrowRight, User2, Star, Filter,
   Utensils, Coffee, Hotel, Camera, Mountain,
   ShoppingBag, Building2, Gem, MoreHorizontal,
-  Heart, Globe, Award, TrendingUp, Sparkles
+  Heart, Globe, Award, TrendingUp, Sparkles, Route
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import AuthModal from '@/components/AuthModal';
 import SearchBar from '@/components/SearchBar';
 import AddByCoordinatesModal from '@/components/AddByCoordinatesModal';
-import LyreIcon from '@/components/LyreIcon';
 import NotificationBell from '@/components/NotificationBell';
 import Image from 'next/image';
 
@@ -40,13 +39,17 @@ const ProfileSettings = dynamic(() => import('@/components/ProfileSettings'), {
   ssr: false
 });
 
-const SourceOfJourney = dynamic(() => import('@/components/SourceOfJourney'), {
+const Guide = dynamic(() => import('@/components/Guide'), {
+  ssr: false
+});
+
+const PlanTrip = dynamic(() => import('@/components/PlanTrip'), {
   ssr: false
 });
 
 // Category definitions for filtering
 const CATEGORIES = [
-  { id: 'all', name: 'All Places', icon: Globe, color: 'bg-midnight-blue text-cream' },
+  { id: 'all', name: 'All Places', icon: Globe, color: 'bg-primary text-white' },
   { id: 'restaurant', name: 'Restaurants', icon: Utensils, color: 'bg-orange-100 text-orange-600' },
   { id: 'cafe', name: 'Cafés', icon: Coffee, color: 'bg-amber-100 text-amber-600' },
   { id: 'hotel', name: 'Hotels', icon: Hotel, color: 'bg-indigo-100 text-indigo-600' },
@@ -243,15 +246,21 @@ export default function HomePage() {
       description: 'Discover places'
     },
     {
-      id: 'source',
-      name: 'Source',
+      id: 'guide',
+      name: 'Guide',
       icon: Sparkles,
-      description: 'AI concierge'
+      description: 'Ask for anywhere'
+    },
+    {
+      id: 'trips',
+      name: 'Trips',
+      icon: Route,
+      description: 'Plan an itinerary'
     },
     {
       id: 'my-places',
       name: 'My Places',
-      icon: LyreIcon,
+      icon: Bookmark,
       description: 'Saved locations'
     },
     {
@@ -267,7 +276,7 @@ export default function HomePage() {
       <div className="h-screen flex items-center justify-center bg-cream page-loader">
         <div className="text-center">
           <div className="spinner-minimal mx-auto mb-5"></div>
-          <p className="text-ocean-grey font-serif font-medium text-sm tracking-widest uppercase" style={{ letterSpacing: '0.2em' }}>Syrena</p>
+          <p className="text-ocean-grey font-serif font-medium text-sm tracking-widest uppercase" style={{ letterSpacing: '0.2em' }}>Pocket Compass</p>
         </div>
       </div>
     );
@@ -312,21 +321,15 @@ export default function HomePage() {
         <div className="p-4 border-b-2 border-sea-mist hover:bg-sea-mist/30 transition-colors flex-shrink-0">
           <div className={`flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
             <div className="flex items-center gap-3">
-              <div className="relative w-14 h-14 flex-shrink-0 bg-primary-subtle rounded-xl shadow-sm border border-border overflow-hidden flex items-center justify-center">
-                <Image
-                  src="/SyrenaStar.png"
-                  alt="Syrena"
-                  width={56}
-                  height={56}
-                  className="object-cover w-full h-full"
-                />
+              <div className="relative w-14 h-14 flex-shrink-0 bg-compass-gradient rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
+                <Compass className="text-white" size={32} strokeWidth={1.75} />
               </div>
               {isSidebarOpen && (
                 <div>
-                  <h1 className="text-4xl font-display font-semibold siren-shimmer tracking-tight">
-                    Syrena
+                  <h1 className="text-2xl font-display font-semibold compass-shimmer tracking-tight leading-tight">
+                    Pocket<br />Compass
                   </h1>
-                  <p className="text-[10px] font-sans font-semibold text-ocean-grey tracking-[0.35em] uppercase mt-0.5">Travel Map</p>
+                  <p className="text-[10px] font-sans font-semibold text-ocean-grey tracking-[0.35em] uppercase mt-0.5">Field Journal</p>
                 </div>
               )}
             </div>
@@ -350,7 +353,7 @@ export default function HomePage() {
                 onClick={() => switchTab('profile')}
                 className="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               >
-                <div className="w-10 h-10 bg-midnight-blue rounded-full flex items-center justify-center text-cream font-serif font-semibold text-sm border-2 border-deep-teal overflow-hidden">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-serif font-semibold text-sm border-2 border-primary-dark overflow-hidden">
                   {userProfile?.avatar_url ? (
                     <Image
                       src={userProfile.avatar_url}
@@ -363,7 +366,7 @@ export default function HomePage() {
                     user?.email?.[0]?.toUpperCase()
                   )}
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-aqua-mist rounded-full border-2 border-off-white"></div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-off-white"></div>
               </button>
               {isSidebarOpen && (
                 <div className="flex-1 min-w-0">
@@ -455,7 +458,7 @@ export default function HomePage() {
               )}
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="btn-icon bg-midnight-blue text-cream hover:bg-deep-teal border-2 border-deep-teal"
+                className="btn-icon bg-primary text-white hover:bg-primary-dark border-2 border-primary-dark"
                 aria-label="Open sidebar"
               >
                 <Menu size={18} />
@@ -507,8 +510,8 @@ export default function HomePage() {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Title Section */}
                   <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex w-12 h-12 rounded-xl bg-midnight-blue items-center justify-center shadow-rustic-md">
-                      <Compass className="text-cream" size={24} />
+                    <div className="hidden sm:flex w-12 h-12 rounded-xl bg-compass-gradient items-center justify-center shadow-rustic-md">
+                      <Compass className="text-white" size={24} />
                     </div>
                     <div>
                       <h1 className="heading-2 flex items-center gap-2">
@@ -536,7 +539,7 @@ export default function HomePage() {
                     <div className="relative">
                       <button
                         onClick={() => setShowCategoryFilter(!showCategoryFilter)}
-                        className={`btn-icon border-2 ${showCategoryFilter || selectedCategory !== 'all' ? 'bg-midnight-blue text-cream border-deep-teal' : 'bg-off-white border-stone-blue text-midnight-blue'} h-[48px] px-4 flex items-center gap-2`}
+                        className={`btn-icon border-2 ${showCategoryFilter || selectedCategory !== 'all' ? 'bg-primary text-white border-primary-dark' : 'bg-off-white border-stone-blue text-midnight-blue'} h-[48px] px-4 flex items-center gap-2`}
                       >
                         <Filter size={16} />
                         <span className="text-sm font-sans hidden sm:inline">
@@ -572,7 +575,7 @@ export default function HomePage() {
                                     {cat.name}
                                   </span>
                                   {selectedCategory === cat.id && (
-                                    <div className="ml-auto w-2 h-2 rounded-full bg-deep-teal" />
+                                    <div className="ml-auto w-2 h-2 rounded-full bg-primary" />
                                   )}
                                 </button>
                               );
@@ -595,7 +598,7 @@ export default function HomePage() {
                         onClick={() => setSelectedCategory(cat.id)}
                         className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border-2 ${
                           isActive
-                            ? 'bg-midnight-blue text-cream border-deep-teal shadow-rustic-md'
+                            ? 'bg-primary text-white border-primary-dark shadow-rustic-md'
                             : 'bg-off-white text-ocean-depth border-stone-blue hover:border-driftwood hover:bg-sea-mist/30'
                         }`}
                         style={{
@@ -675,27 +678,21 @@ export default function HomePage() {
               {!isAuthenticated && (
                 <div className="absolute bottom-6 left-6 right-6 sm:right-auto card-minimal max-w-md animate-slide-up p-6 shadow-rustic-xl">
                   <div className="flex items-center gap-4 mb-5">
-                    <div className="relative w-20 h-20 bg-primary-subtle rounded-xl shadow-sm border border-border overflow-hidden flex items-center justify-center">
-                      <Image
-                        src="/SyrenaStar.png"
-                        alt="Syrena"
-                        width={80}
-                        height={80}
-                        className="object-cover w-full h-full"
-                      />
+                    <div className="relative w-20 h-20 bg-compass-gradient rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
+                      <Compass className="text-white" size={44} strokeWidth={1.5} />
                     </div>
                     <div>
                       <h3 className="heading-3">
-                        Welcome to Syrena
+                        Welcome to Pocket Compass
                       </h3>
                       <p className="text-caption">
-                        Your personal travel map
+                        Your field journal for places worth finding
                       </p>
                     </div>
                   </div>
                   <p className="text-body mb-6">
-                    Create your personal travel map and share discoveries with friends.
-                    Pin your favorite spots and build your travel story.
+                    Ask the Guide for the perfect spot, chart day-by-day trips,
+                    and build a map of places you and your friends love.
                   </p>
                   <button
                     onClick={() => setShowAuthModal(true)}
@@ -710,7 +707,8 @@ export default function HomePage() {
           </>
         )}
 
-        {activeTab === 'source' && <SourceOfJourney isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
+        {activeTab === 'guide' && <Guide isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
+        {activeTab === 'trips' && <PlanTrip isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} isAuthenticated={isAuthenticated} onRequestSignIn={() => setShowAuthModal(true)} />}
         {activeTab === 'my-places' && <MyPlaces key={Date.now()} onNavigateToPlace={handleNavigateToPlace} isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onEditProfile={() => switchTab('profile')} />}
         {activeTab === 'friends' && <Friends isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
         {activeTab === 'profile' && <ProfileSettings onBack={() => {

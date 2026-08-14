@@ -204,14 +204,8 @@ export default function AddPlaceModal({
                   className="object-contain w-full h-full"
                 />
               ) : (
-                <div className="bg-cream rounded-xl border-2 border-warm-stone overflow-hidden w-full h-full flex items-center justify-center">
-                  <Image
-                    src="/SYRENABAROQUE.png"
-                    alt="Syrena"
-                    width={64}
-                    height={64}
-                    className="object-cover w-full h-full"
-                  />
+                <div className="bg-compass-gradient rounded-xl overflow-hidden w-full h-full flex items-center justify-center">
+                  <MapPin className="text-white" size={32} strokeWidth={1.5} />
                 </div>
               )}
             </div>

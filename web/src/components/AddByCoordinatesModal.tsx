@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { X, MapPin, Navigation } from 'lucide-react';
-import Image from 'next/image';
 
 interface AddByCoordinatesModalProps {
   isOpen: boolean;
@@ -74,14 +73,8 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
           </button>
 
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-cream rounded-xl border-2 border-warm-stone overflow-hidden">
-              <Image
-                src="/SYRENABAROQUE.png"
-                alt="Syrena"
-                width={64}
-                height={64}
-                className="object-cover w-full h-full"
-              />
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-compass-gradient rounded-xl overflow-hidden">
+              <Navigation className="text-white" size={32} strokeWidth={1.5} />
             </div>
             <h2 className="heading-2 mb-2">Add by Coordinates</h2>
             <p className="text-caption">Enter latitude and longitude</p>
