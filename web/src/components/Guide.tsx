@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 import { photoSrc } from '@/lib/photo';
+import { categoryMeta } from '@/lib/categories';
 import AddToTripModal, { AddablePlace } from '@/components/AddToTripModal';
 
 interface Place {
@@ -67,21 +68,6 @@ const LOADING_STAGES = [
   'Pulling photos and ratings…',
   'Keeping only the keepers…',
 ];
-
-const getCategoryIcon = (category: string) => {
-  const icons: Record<string, string> = {
-    restaurant: '🍽',
-    cafe: '☕',
-    bar: '🍷',
-    hotel: '🏨',
-    viewpoint: '📸',
-    nature: '🌿',
-    shopping: '🛍',
-    museum: '🏛',
-    'hidden-gem': '💎',
-  };
-  return icons[category] || '📍';
-};
 
 // 1234 → "1.2k" for compact review counts on rating pills
 const formatReviews = (n: number): string =>
@@ -503,9 +489,19 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
                       {/* Top Row */}
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <span className="text-2xl flex-shrink-0 mt-0.5" role="img" aria-label={place.category}>
-                            {getCategoryIcon(place.category)}
-                          </span>
+                          {(() => {
+                            const m = categoryMeta(place.category);
+                            const CatIcon = m.Icon;
+                            return (
+                              <span
+                                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                                style={{ background: m.subtle }}
+                                aria-label={place.category}
+                              >
+                                <CatIcon size={16} style={{ color: m.color }} />
+                              </span>
+                            );
+                          })()}
                           <div className="min-w-0">
                             <h3 className="font-serif font-semibold text-midnight-blue text-lg leading-tight">
                               {place.name}

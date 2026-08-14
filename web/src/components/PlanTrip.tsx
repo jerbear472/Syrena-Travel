@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 import { dayColor } from '@/lib/itinerary-colors';
 import { photoSrc } from '@/lib/photo';
+import { categoryMeta } from '@/lib/categories';
 
 interface ItineraryPlace {
   name: string;
@@ -632,11 +633,16 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                               </span>
                             )}
                           </div>
-                          {(p.neighborhood || p.category) && (
-                            <div className="text-[11px] tracking-wider uppercase text-driftwood mb-2 font-sans">
-                              {[p.category, p.neighborhood].filter(Boolean).join(' · ')}
-                            </div>
-                          )}
+                          {(p.neighborhood || p.category) && (() => {
+                            const m = categoryMeta(p.category);
+                            const CatIcon = m.Icon;
+                            return (
+                              <div className="flex items-center gap-1.5 text-[11px] tracking-wider uppercase text-driftwood mb-2 font-sans">
+                                {p.category && <CatIcon size={11} style={{ color: m.color }} />}
+                                {[p.category, p.neighborhood].filter(Boolean).join(' · ')}
+                              </div>
+                            );
+                          })()}
                           {p.description && (
                             <p className="text-sm text-ocean-depth leading-relaxed mb-2">{p.description}</p>
                           )}

@@ -8,6 +8,7 @@ import {
   Building2, Gem, Users, MoreHorizontal, Menu, Zap, Eye
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { categoryMeta } from '@/lib/categories';
 
 interface MyPlacesProps {
   onNavigateToPlace?: (lat: number, lng: number) => void;
@@ -73,22 +74,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
   };
 
   // Get category icon
-  const getCategoryIcon = (category: string) => {
-    const icons: any = {
-      restaurant: Utensils,
-      cafe: Coffee,
-      coffee: Coffee,
-      viewpoint: Camera,
-      nature: Mountain,
-      shopping: ShoppingBag,
-      hotel: Hotel,
-      museum: Building2,
-      'hidden-gem': Gem,
-      'people-watching': Users,
-      other: MoreHorizontal,
-    };
-    return icons[category] || MapPin;
-  };
+  const getCategoryIcon = (category: string) => categoryMeta(category).Icon;
 
   // Filter places based on search
   const filteredPlaces = savedPlaces.filter(place =>
@@ -160,9 +146,9 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
               <div className="flex items-center justify-between mb-2">
                 <stat.icon
                   size={18}
-                  className="text-rust"
+                  className="text-ocean-grey"
                 />
-                <span className="text-2xl font-display font-semibold text-earth-brown">
+                <span className="text-2xl font-display font-semibold text-midnight-blue">
                   {stat.value}
                 </span>
               </div>
@@ -188,7 +174,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 className={`whitespace-nowrap px-4 py-2 rounded-md text-sm font-sans font-medium transition-all ${
                   selectedFilter === filter.id
                     ? 'bg-earth-brown text-cream border-2 border-rust shadow-rustic-md'
-                    : 'bg-off-white text-earth-brown border-2 border-warm-stone hover:bg-sand'
+                    : 'bg-off-white text-midnight-blue border-2 border-warm-stone hover:bg-sand'
                 }`}
               >
                 {filter.name}
@@ -212,7 +198,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
           <div className="flex items-center gap-3">
             {/* Search */}
             <div className="relative flex-1 lg:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-terracotta" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-driftwood" size={16} />
               <input
                 type="text"
                 placeholder="Search places..."
@@ -245,7 +231,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                         setShowSortDropdown(false);
                       }}
                       className={`w-full px-4 py-2 text-left text-sm font-serif hover:bg-sand transition-colors ${
-                        sortBy === option.id ? 'text-earth-brown bg-sand font-semibold' : 'text-rust'
+                        sortBy === option.id ? 'text-midnight-blue bg-sand font-semibold' : 'text-ocean-grey'
                       }`}
                     >
                       {option.label}
@@ -263,7 +249,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 className={`p-2 transition-all ${
                   viewMode === 'grid'
                     ? 'bg-earth-brown text-cream'
-                    : 'text-earth-brown hover:bg-sand'
+                    : 'text-midnight-blue hover:bg-sand'
                 }`}
               >
                 <Grid3x3 size={16} />
@@ -274,7 +260,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 className={`p-2 transition-all ${
                   viewMode === 'list'
                     ? 'bg-earth-brown text-cream'
-                    : 'text-earth-brown hover:bg-sand'
+                    : 'text-midnight-blue hover:bg-sand'
                 }`}
               >
                 <List size={16} />
@@ -290,14 +276,14 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="spinner-minimal mx-auto mb-4"></div>
-              <p className="text-terracotta font-serif">Loading your places...</p>
+              <p className="text-driftwood font-serif">Loading your places...</p>
             </div>
           </div>
         ) : filteredPlaces.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full animate-fade-in">
             <div className="text-center max-w-md">
               <div className="w-20 h-20 bg-sand border-2 border-warm-stone rounded-full flex items-center justify-center mx-auto mb-6">
-                <MapPin size={32} className="text-rust" />
+                <MapPin size={32} className="text-ocean-grey" />
               </div>
               <h3 className="heading-3 mb-3">
                 Start Building Your Map
@@ -329,14 +315,14 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                   }}
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-sand border-2 border-warm-stone rounded-lg flex items-center justify-center">
-                      <CategoryIcon size={20} className="text-rust" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: categoryMeta(place.category).subtle }}>
+                      <CategoryIcon size={20} style={{ color: categoryMeta(place.category).color }} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-serif font-semibold text-earth-brown">
+                      <h3 className="font-serif font-semibold text-midnight-blue">
                         {place.name}
                       </h3>
-                      <p className="text-xs text-terracotta capitalize italic">
+                      <p className="text-xs text-driftwood capitalize italic">
                         {place.category}
                       </p>
                     </div>
@@ -346,11 +332,11 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                         deletePlace(place.id);
                       }}
                       className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 size={16} className="text-rust" />
+                      <Trash2 size={16} className="text-ocean-grey" />
                     </button>
                   </div>
                   {place.description && (
-                    <p className="text-sm text-rust mb-3 line-clamp-2 font-serif">
+                    <p className="text-sm text-ocean-grey mb-3 line-clamp-2 font-serif">
                       {place.description}
                     </p>
                   )}
@@ -361,7 +347,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                         {place.visit_count || 0} {place.visit_count === 1 ? 'visit' : 'visits'}
                       </span>
                     </div>
-                    <span className="text-xs text-terracotta italic">
+                    <span className="text-xs text-driftwood italic">
                       {new Date(place.created_at).toLocaleDateString()}
                     </span>
                   </div>
@@ -385,27 +371,27 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                   }}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="w-full sm:w-20 h-20 bg-sand border-2 border-warm-stone rounded-lg flex items-center justify-center flex-shrink-0">
-                      <CategoryIcon size={32} className="text-rust" />
+                    <div className="w-full sm:w-20 h-20 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: categoryMeta(place.category).subtle }}>
+                      <CategoryIcon size={32} style={{ color: categoryMeta(place.category).color }} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-serif font-semibold text-earth-brown mb-1">
+                      <h3 className="font-serif font-semibold text-midnight-blue mb-1">
                         {place.name}
                       </h3>
                       {place.description && (
-                        <p className="text-sm text-rust mb-2 line-clamp-2 font-serif">
+                        <p className="text-sm text-ocean-grey mb-2 line-clamp-2 font-serif">
                           {place.description}
                         </p>
                       )}
                       <div className="flex items-center gap-4 text-sm">
-                        <span className="text-terracotta capitalize italic">{place.category}</span>
+                        <span className="text-driftwood capitalize italic">{place.category}</span>
                         <div className="flex items-center gap-1.5">
                           <Eye size={14} className="text-ocean-depth" />
                           <span className="text-sm font-serif font-medium text-midnight-blue">
                             {place.visit_count || 0}
                           </span>
                         </div>
-                        <span className="text-xs text-terracotta italic">
+                        <span className="text-xs text-driftwood italic">
                           {new Date(place.created_at).toLocaleDateString()}
                         </span>
                       </div>
@@ -416,7 +402,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                         deletePlace(place.id);
                       }}
                       className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 size={16} className="text-rust" />
+                      <Trash2 size={16} className="text-ocean-grey" />
                     </button>
                   </div>
                 </div>

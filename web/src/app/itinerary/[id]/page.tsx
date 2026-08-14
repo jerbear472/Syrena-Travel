@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { anonClient } from '@/lib/auth-server';
 import { dayColor } from '@/lib/itinerary-colors';
 import { photoSrc } from '@/lib/photo';
+import { categoryMeta } from '@/lib/categories';
 import type { Metadata } from 'next';
 
 interface ItineraryPlace {
@@ -211,11 +212,16 @@ export default async function ItineraryPage({
                         </span>
                       )}
                     </div>
-                    {(p.neighborhood || p.category) && (
-                      <div className="text-xs tracking-wider uppercase text-text-tertiary mb-3">
-                        {[p.category, p.neighborhood].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
+                    {(p.neighborhood || p.category) && (() => {
+                      const m = categoryMeta(p.category);
+                      const CatIcon = m.Icon;
+                      return (
+                        <div className="flex items-center gap-1.5 text-xs tracking-wider uppercase text-text-tertiary mb-3">
+                          {p.category && <CatIcon size={12} style={{ color: m.color }} />}
+                          {[p.category, p.neighborhood].filter(Boolean).join(' · ')}
+                        </div>
+                      );
+                    })()}
                     {p.description && (
                       <p className="text-[15px] text-text-secondary leading-relaxed mb-3">
                         {p.description}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, MapPin, Star, MessageCircle, CheckCircle2, User2, Calendar, Send, Heart, Navigation } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { categoryMeta } from '@/lib/categories';
 import Image from 'next/image';
 
 interface PlaceDetailsModalProps {
@@ -184,23 +185,8 @@ export default function PlaceDetailsModal({
 
   if (!isOpen || !place) return null;
 
-  // Get category icon background color
-  const getCategoryColor = (category: string) => {
-    const colors: any = {
-      restaurant: 'bg-orange-100',
-      cafe: 'bg-amber-100',
-      coffee: 'bg-amber-100',
-      viewpoint: 'bg-blue-100',
-      nature: 'bg-green-100',
-      shopping: 'bg-purple-100',
-      hotel: 'bg-indigo-100',
-      museum: 'bg-cyan-100',
-      'hidden-gem': 'bg-pink-100',
-      'people-watching': 'bg-teal-100',
-      other: 'bg-gray-100',
-    };
-    return colors[category] || 'bg-gray-100';
-  };
+  const catMeta = categoryMeta(place.category);
+  const CatIcon = catMeta.Icon;
 
   return (
     <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4">
@@ -226,8 +212,8 @@ export default function PlaceDetailsModal({
                   className="object-contain"
                 />
               ) : (
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getCategoryColor(place.category)}`}>
-                  <MapPin size={24} className="text-gray-700" />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ background: catMeta.subtle }}>
+                  <CatIcon size={24} style={{ color: catMeta.color }} />
                 </div>
               )}
             </div>

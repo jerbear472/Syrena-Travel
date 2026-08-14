@@ -7,6 +7,7 @@ import {
   Building2, Gem, Users, MoreHorizontal, DollarSign, Zap, Eye
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { categoryMeta } from '@/lib/categories';
 
 interface FriendPlacesPageProps {
   friend: {
@@ -66,22 +67,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
   };
 
   // Get category icon
-  const getCategoryIcon = (category: string) => {
-    const icons: any = {
-      restaurant: Utensils,
-      cafe: Coffee,
-      coffee: Coffee,
-      viewpoint: Camera,
-      nature: Mountain,
-      shopping: ShoppingBag,
-      hotel: Hotel,
-      museum: Building2,
-      'hidden-gem': Gem,
-      'people-watching': Users,
-      other: MoreHorizontal,
-    };
-    return icons[category] || MapPin;
-  };
+  const getCategoryIcon = (category: string) => categoryMeta(category).Icon;
 
   // Filter places based on search
   const filteredPlaces = places.filter(place =>
@@ -148,9 +134,9 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
                 <div className="flex items-center justify-between mb-2">
                   <Icon
                     size={18}
-                    className="text-rust"
+                    className="text-ocean-grey"
                   />
-                  <span className="text-2xl font-display font-semibold text-earth-brown">
+                  <span className="text-2xl font-display font-semibold text-midnight-blue">
                     {stat.value}
                   </span>
                 </div>
@@ -170,7 +156,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
         {/* Search and View Toggle */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-terracotta" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-driftwood" size={16} />
             <input
               type="text"
               placeholder="Search places..."
@@ -187,7 +173,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
               className={`p-2 transition-all ${
                 viewMode === 'grid'
                   ? 'bg-earth-brown text-cream'
-                  : 'text-earth-brown hover:bg-sand'
+                  : 'text-midnight-blue hover:bg-sand'
               }`}
             >
               <Grid3x3 size={16} />
@@ -198,7 +184,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
               className={`p-2 transition-all ${
                 viewMode === 'list'
                   ? 'bg-earth-brown text-cream'
-                  : 'text-earth-brown hover:bg-sand'
+                  : 'text-midnight-blue hover:bg-sand'
               }`}
             >
               <List size={16} />
@@ -213,14 +199,14 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="spinner-minimal mx-auto mb-4"></div>
-              <p className="text-terracotta font-serif">Loading places...</p>
+              <p className="text-driftwood font-serif">Loading places...</p>
             </div>
           </div>
         ) : filteredPlaces.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full animate-fade-in">
             <div className="text-center max-w-md">
               <div className="w-20 h-20 bg-sand border-2 border-warm-stone rounded-full flex items-center justify-center mx-auto mb-6">
-                <MapPin size={32} className="text-rust" />
+                <MapPin size={32} className="text-ocean-grey" />
               </div>
               <h3 className="heading-3 mb-3">
                 {searchQuery ? 'No matching places' : 'No places yet'}
@@ -244,20 +230,20 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
                   onClick={() => onNavigateToPlace?.(place.lat, place.lng)}
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-sand border-2 border-warm-stone rounded-lg flex items-center justify-center">
-                      <CategoryIcon size={20} className="text-rust" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: categoryMeta(place.category).subtle }}>
+                      <CategoryIcon size={20} style={{ color: categoryMeta(place.category).color }} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-serif font-semibold text-earth-brown">
+                      <h3 className="font-serif font-semibold text-midnight-blue">
                         {place.name}
                       </h3>
-                      <p className="text-xs text-terracotta capitalize italic">
+                      <p className="text-xs text-driftwood capitalize italic">
                         {place.category}
                       </p>
                     </div>
                   </div>
                   {place.description && (
-                    <p className="text-sm text-rust mb-3 line-clamp-2 font-serif">
+                    <p className="text-sm text-ocean-grey mb-3 line-clamp-2 font-serif">
                       {place.description}
                     </p>
                   )}
@@ -268,7 +254,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
                         {place.visit_count || 0} {place.visit_count === 1 ? 'visit' : 'visits'}
                       </span>
                     </div>
-                    <span className="text-xs text-terracotta italic">
+                    <span className="text-xs text-driftwood italic">
                       {new Date(place.created_at).toLocaleDateString()}
                     </span>
                   </div>
@@ -287,27 +273,27 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
                   onClick={() => onNavigateToPlace?.(place.lat, place.lng)}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="w-full sm:w-20 h-20 bg-sand border-2 border-warm-stone rounded-lg flex items-center justify-center flex-shrink-0">
-                      <CategoryIcon size={32} className="text-rust" />
+                    <div className="w-full sm:w-20 h-20 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: categoryMeta(place.category).subtle }}>
+                      <CategoryIcon size={32} style={{ color: categoryMeta(place.category).color }} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-serif font-semibold text-earth-brown mb-1">
+                      <h3 className="font-serif font-semibold text-midnight-blue mb-1">
                         {place.name}
                       </h3>
                       {place.description && (
-                        <p className="text-sm text-rust mb-2 line-clamp-2 font-serif">
+                        <p className="text-sm text-ocean-grey mb-2 line-clamp-2 font-serif">
                           {place.description}
                         </p>
                       )}
                       <div className="flex items-center gap-4 text-sm">
-                        <span className="text-terracotta capitalize italic">{place.category}</span>
+                        <span className="text-driftwood capitalize italic">{place.category}</span>
                         <div className="flex items-center gap-1.5">
                           <Eye size={14} className="text-ocean-depth" />
                           <span className="text-sm font-serif font-medium text-midnight-blue">
                             {place.visit_count || 0}
                           </span>
                         </div>
-                        <span className="text-xs text-terracotta italic">
+                        <span className="text-xs text-driftwood italic">
                           {new Date(place.created_at).toLocaleDateString()}
                         </span>
                       </div>

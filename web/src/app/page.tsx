@@ -50,14 +50,14 @@ const PlanTrip = dynamic(() => import('@/components/PlanTrip'), {
 // Category definitions for filtering
 const CATEGORIES = [
   { id: 'all', name: 'All Places', icon: Globe, color: 'bg-primary text-white' },
-  { id: 'restaurant', name: 'Restaurants', icon: Utensils, color: 'bg-orange-100 text-orange-600' },
-  { id: 'cafe', name: 'Cafés', icon: Coffee, color: 'bg-amber-100 text-amber-600' },
-  { id: 'hotel', name: 'Hotels', icon: Hotel, color: 'bg-indigo-100 text-indigo-600' },
-  { id: 'viewpoint', name: 'Viewpoints', icon: Camera, color: 'bg-blue-100 text-blue-600' },
-  { id: 'nature', name: 'Nature', icon: Mountain, color: 'bg-green-100 text-green-600' },
-  { id: 'shopping', name: 'Shopping', icon: ShoppingBag, color: 'bg-purple-100 text-purple-600' },
-  { id: 'museum', name: 'Museums', icon: Building2, color: 'bg-cyan-100 text-cyan-600' },
-  { id: 'hidden-gem', name: 'Hidden Gems', icon: Gem, color: 'bg-pink-100 text-pink-600' },
+  { id: 'restaurant', name: 'Restaurants', icon: Utensils, color: 'bg-[#FBE9E2] text-[#D95D39]' },
+  { id: 'cafe', name: 'Cafés', icon: Coffee, color: 'bg-[#FCF1DE] text-[#C77F1F]' },
+  { id: 'hotel', name: 'Hotels', icon: Hotel, color: 'bg-[#EBF1F6] text-[#4A6B8A]' },
+  { id: 'viewpoint', name: 'Viewpoints', icon: Camera, color: 'bg-[#E6F3F6] text-[#0E7490]' },
+  { id: 'nature', name: 'Nature', icon: Mountain, color: 'bg-[#EDF7EF] text-[#2F855A]' },
+  { id: 'shopping', name: 'Shopping', icon: ShoppingBag, color: 'bg-[#F1EAFD] text-[#7C3AED]' },
+  { id: 'museum', name: 'Museums', icon: Building2, color: 'bg-[#F3F0EA] text-[#6D6A63]' },
+  { id: 'hidden-gem', name: 'Hidden Gems', icon: Gem, color: 'bg-[#FCF1DE] text-[#E9A23B]' },
   { id: 'my-picks', name: 'My Picks', icon: Star, color: 'bg-siren-gold/20 text-siren-gold' },
 ];
 
