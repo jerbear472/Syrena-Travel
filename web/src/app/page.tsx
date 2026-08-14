@@ -306,7 +306,7 @@ export default function HomePage() {
       {/* Sidebar */}
       <aside
         className={`${
-          isSidebarOpen ? 'w-64' : isMobile ? 'w-0' : 'w-16'
+          isSidebarOpen ? 'w-80' : isMobile ? 'w-0' : 'w-16'
         } ${
           isMobile ? 'fixed inset-y-0 left-0 z-[100]' : 'relative'
         } ${
@@ -321,7 +321,7 @@ export default function HomePage() {
         <div className={`${isSidebarOpen ? 'p-4' : 'px-2 py-4'} border-b-2 border-sea-mist hover:bg-sea-mist/30 transition-colors flex-shrink-0`}>
           <div className={`flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
             <div className="flex items-center gap-3">
-              <div className={`relative ${isSidebarOpen ? 'w-14 h-14' : 'w-10 h-10'} flex-shrink-0 rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center`}>
+              <div className={`relative ${isSidebarOpen ? 'w-12 h-12' : 'w-10 h-10'} flex-shrink-0 rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center`}>
                 <Image
                   src="/pocket-compass-star.png"
                   alt="Pocket Compass"
@@ -331,9 +331,9 @@ export default function HomePage() {
                 />
               </div>
               {isSidebarOpen && (
-                <div>
-                  <h1 className="text-2xl font-display font-semibold compass-shimmer tracking-tight leading-tight">
-                    Pocket<br />Compass
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-display font-semibold compass-shimmer tracking-tight leading-tight whitespace-nowrap">
+                    Pocket Compass
                   </h1>
                   <p className="text-[10px] font-sans font-semibold text-ocean-grey tracking-[0.35em] uppercase mt-0.5">Field Journal</p>
                 </div>
