@@ -307,22 +307,11 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
           </div>
         </div>
         <div className="px-6 py-5">
-          <div className="flex items-center gap-4 mb-1">
-            <div className="hidden sm:flex w-12 h-12 rounded-xl items-center justify-center shadow-rustic-md overflow-hidden">
-              <Image
-                src="/pocket-compass-star.png"
-                alt="The Guide"
-                width={48}
-                height={48}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <div>
-              <h1 className="heading-2 flex items-center gap-2">
-                The Guide
-              </h1>
-              <p className="text-caption mt-0.5">Tell me where you are. I'll show you where to go.</p>
-            </div>
+          <div>
+            <h1 className="heading-2 flex items-center gap-2">
+              The Guide
+            </h1>
+            <p className="text-caption mt-0.5">Tell me where you are. I'll show you where to go.</p>
           </div>
         </div>
       </header>

@@ -806,20 +806,9 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
           <span className="text-xs text-ocean-grey italic hidden sm:inline">Days cluster so you never backtrack</span>
         </div>
         <div className="px-6 py-5">
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex w-12 h-12 rounded-xl items-center justify-center shadow-rustic-md overflow-hidden">
-              <Image
-                src="/pocket-compass-star.png"
-                alt="Plan a Trip"
-                width={48}
-                height={48}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <div>
-              <h1 className="heading-2">Plan a Trip</h1>
-              <p className="text-caption mt-0.5">Tell Pocket Compass where you're going. We'll chart the rest.</p>
-            </div>
+          <div>
+            <h1 className="heading-2">Plan a Trip</h1>
+            <p className="text-caption mt-0.5">Tell Pocket Compass where you're going. We'll chart the rest.</p>
           </div>
         </div>
       </header>

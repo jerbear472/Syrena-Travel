@@ -520,9 +520,6 @@ export default function HomePage() {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Title Section */}
                   <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex w-12 h-12 rounded-xl bg-compass-gradient items-center justify-center shadow-rustic-md">
-                      <Compass className="text-white" size={24} />
-                    </div>
                     <div>
                       <h1 className="heading-2 flex items-center gap-2">
                         Explore
