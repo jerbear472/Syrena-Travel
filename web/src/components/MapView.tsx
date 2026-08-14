@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { MapPin, Star, Loader2, AlertCircle, Check, Heart, Navigation, Utensils, Coffee, Camera, Mountain, ShoppingBag, Hotel, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { categoryMarkerUrl, MARKER_SIZE, MARKER_ANCHOR } from '@/lib/map-markers';
 import AddPlaceModal from './AddPlaceModal';
 import PlaceDetailsModal from './PlaceDetailsModal';
 
@@ -584,36 +585,15 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       console.log('Filtered to', filteredPlaces.length, 'places for category:', categoryFilter);
     }
 
-    // Create markers using the same lyre-circle.svg as the temp marker
+    // Category-matched pins: the glyph and color reflect what the place IS.
     const allMarkers: google.maps.Marker[] = [];
 
     filteredPlaces.forEach(place => {
-      console.log('Creating marker for place:', place.name, 'at', place.lat, place.lng);
-      console.log('Place data:', JSON.stringify(place, null, 2));
-
-      // Get the odyssey icon from the place's creator profile
-      const odysseyIcon = place.profile?.odyssey_icon;
-      console.log('Odyssey icon for', place.name, ':', odysseyIcon);
-
-      let iconConfig;
-      if (odysseyIcon) {
-        // Use circular odyssey icon (PNG)
-        const iconName = odysseyIcon.includes('-circle.png')
-          ? odysseyIcon
-          : odysseyIcon.replace('.png', '-circle.png');
-        iconConfig = {
-          url: `/avatars/${iconName}`,
-          scaledSize: new google.maps.Size(60, 60),
-          anchor: new google.maps.Point(30, 30)
-        };
-      } else {
-        // Default to lyre icon
-        iconConfig = {
-          url: '/lyre-circle.svg',
-          scaledSize: new google.maps.Size(60, 60),
-          anchor: new google.maps.Point(30, 30)
-        };
-      }
+      const iconConfig = {
+        url: categoryMarkerUrl(place.category),
+        scaledSize: new google.maps.Size(MARKER_SIZE.width, MARKER_SIZE.height),
+        anchor: new google.maps.Point(MARKER_ANCHOR.x, MARKER_ANCHOR.y),
+      };
 
       const marker = new google.maps.Marker({
         position: { lat: Number(place.lat), lng: Number(place.lng) },
@@ -803,31 +783,28 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
         {/* Saved places are now handled by marker clusterer */}
 
-        {/* Clicked location marker (temp) - made larger (60x60) */}
-        {clickedLocation && (() => {
-          const iconName = userOdysseyIcon
-            ? (userOdysseyIcon.includes('-circle.png')
-                ? userOdysseyIcon
-                : userOdysseyIcon.replace('.png', '-circle.png'))
-            : null;
-          const iconUrl = iconName ? `/avatars/${iconName}` : '/lyre-circle.svg';
-          console.log('Rendering temporary marker with icon:', iconUrl, 'userOdysseyIcon:', userOdysseyIcon);
-          return (
-            <Marker
-              position={clickedLocation}
-              icon={{
-                url: iconUrl,
-                scaledSize: new google.maps.Size(60 * markerAnimation.scale, 60 * markerAnimation.scale),
-                anchor: new google.maps.Point(30 * markerAnimation.scale, 30 * markerAnimation.scale)
-              }}
-              zIndex={1001}
-              opacity={markerAnimation.opacity}
-              options={{
-                optimized: false
-              }}
-            />
-          );
-        })()}
+        {/* Clicked location marker (temp) - terracotta "add here" pin */}
+        {clickedLocation && (
+          <Marker
+            position={clickedLocation}
+            icon={{
+              url: categoryMarkerUrl('new'),
+              scaledSize: new google.maps.Size(
+                MARKER_SIZE.width * markerAnimation.scale,
+                MARKER_SIZE.height * markerAnimation.scale
+              ),
+              anchor: new google.maps.Point(
+                MARKER_ANCHOR.x * markerAnimation.scale,
+                MARKER_ANCHOR.y * markerAnimation.scale
+              )
+            }}
+            zIndex={1001}
+            opacity={markerAnimation.opacity}
+            options={{
+              optimized: false
+            }}
+          />
+        )}
       </GoogleMap>
 
       {/* Center on user button - positioned below map controls */}
