@@ -81,9 +81,12 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://syrena-web-new.ve
   .replace(/\/$/, '');
 
 // Build a URL to our own /api/photo proxy instead of embedding the API key.
-function photoUrl(ref: string | null, maxWidth: number): string | null {
+// The place_id rides along so the proxy can mint a fresh photo reference if
+// the embedded one expires (Google 400s old refs after a few weeks).
+function photoUrl(ref: string | null, maxWidth: number, placeId?: string | null): string | null {
   if (!ref) return null;
-  return `${SITE_URL}/api/photo?ref=${encodeURIComponent(ref)}&w=${maxWidth}`;
+  const pid = placeId ? `&pid=${encodeURIComponent(placeId)}` : '';
+  return `${SITE_URL}/api/photo?ref=${encodeURIComponent(ref)}&w=${maxWidth}${pid}`;
 }
 
 interface CacheRow {
@@ -104,7 +107,7 @@ function rowToEnriched(row: CacheRow, photoMaxWidth: number): EnrichedPlace {
   return {
     verified: row.verified,
     google_name: row.google_name,
-    photo_url: photoUrl(row.photo_reference, photoMaxWidth),
+    photo_url: photoUrl(row.photo_reference, photoMaxWidth, row.google_place_id),
     price_level: row.price_level,
     rating: row.rating,
     user_ratings_total: row.user_ratings_total,
@@ -251,7 +254,7 @@ export async function verifyAndEnrichPlace(
     return {
       verified: true,
       google_name: row.google_name,
-      photo_url: photoUrl(photoRef, photoMaxWidth),
+      photo_url: photoUrl(photoRef, photoMaxWidth, placeId),
       price_level: row.price_level,
       rating: row.rating,
       user_ratings_total: row.user_ratings_total,
