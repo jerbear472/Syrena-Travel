@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Send, MapPin, Star, Compass, Heart, Menu, ExternalLink,
   Bookmark, History, X, Utensils, Coffee, Wine, ShoppingBag,
-  Building2, LayoutGrid,
+  Building2, LayoutGrid, Route,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 import { photoSrc } from '@/lib/photo';
+import AddToTripModal, { AddablePlace } from '@/components/AddToTripModal';
 
 interface Place {
   name: string;
@@ -98,6 +99,8 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [tripPlace, setTripPlace] = useState<AddablePlace | null>(null);
+  const [addedToTrip, setAddedToTrip] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -533,6 +536,13 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
                           >
                             <Compass size={18} />
                           </button>
+                          <button
+                            onClick={() => setTripPlace(place)}
+                            className="btn-icon text-ocean-grey hover:text-primary"
+                            title="Add to a trip"
+                          >
+                            <Route size={18} />
+                          </button>
                           {place.google_place_id && (
                             <a
                               href={`https://www.google.com/maps/place/?q=place_id:${place.google_place_id}`}
@@ -624,6 +634,22 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
           )}
         </div>
       </div>
+
+      {/* Add-to-trip flow */}
+      <AddToTripModal
+        place={tripPlace}
+        onClose={() => setTripPlace(null)}
+        onAdded={(tripTitle, dayNumber) => {
+          setAddedToTrip(`Added to ${tripTitle}, Day ${dayNumber}`);
+          setTimeout(() => setAddedToTrip(''), 3000);
+        }}
+      />
+      {addedToTrip && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[210] px-4 py-2.5 rounded-full bg-midnight-blue text-white text-sm font-sans shadow-rustic-xl animate-slide-up flex items-center gap-2">
+          <Route size={14} className="text-accent" />
+          {addedToTrip}
+        </div>
+      )}
     </div>
   );
 }

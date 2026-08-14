@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Menu, Compass, Minus, Plus, ArrowLeft, Share2, Bookmark, Star,
   MapPin, Check, Trash2, ExternalLink, Utensils, Coffee, Wine,
-  Building2, Trees, ShoppingBag, Landmark, Moon,
+  Building2, Trees, ShoppingBag, Landmark, Moon, Lock, LockOpen,
+  ChevronUp, ChevronDown, Sparkles, X, Search,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
@@ -24,6 +25,22 @@ interface ItineraryPlace {
   rating?: number;
   price_level?: number;
   neighborhood?: string;
+  // Decided by the user — survives redraws. AI picks start unlocked.
+  locked?: boolean;
+}
+
+interface LibraryPlace {
+  id: string;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  photo_url?: string | null;
+  google_place_id?: string | null;
+  rating?: number | null;
+  price_level?: number | null;
 }
 
 interface ItineraryDay {
@@ -97,6 +114,8 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
   const [pace, setPace] = useState<Pace>('standard');
   const [preferences, setPreferences] = useState<string[]>([]);
   const [avoids, setAvoids] = useState('');
+  const [startPoint, setStartPoint] = useState('');
+  const [endPoint, setEndPoint] = useState('');
 
   // Result state
   const [loading, setLoading] = useState(false);
@@ -184,6 +203,8 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
             avoids: avoids.trim()
               ? avoids.split(',').map(s => s.trim()).filter(Boolean)
               : undefined,
+            startPoint: startPoint.trim() || undefined,
+            endPoint: endPoint.trim() || undefined,
           },
         }),
       });
@@ -273,6 +294,165 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
   const totalPlaces = itinerary
     ? itinerary.days.reduce((n, d) => n + (d.places?.length || 0), 0)
     : 0;
+
+  // -------------------- Trip editing --------------------
+
+  const [redrawingDay, setRedrawingDay] = useState<number | null>(null);
+  const [pickerDay, setPickerDay] = useState<number | null>(null);
+  const [library, setLibrary] = useState<LibraryPlace[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [librarySearch, setLibrarySearch] = useState('');
+
+  const placeKey = (p: { google_place_id?: string | null; name: string }) =>
+    p.google_place_id || p.name.trim().toLowerCase();
+
+  const tripHasPlace = (key: string) =>
+    !!itinerary?.days.some(d => (d.places || []).some(p => placeKey(p) === key));
+
+  // Optimistic local update + PATCH persistence for one or more days.
+  const commitDays = async (nextDays: ItineraryDay[], changed: number[]) => {
+    if (!itinerary) return;
+    const prev = itinerary;
+    setItinerary({ ...itinerary, days: nextDays });
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Please sign in.');
+      const res = await fetch(`/api/itinerary/${itinerary.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          days: nextDays
+            .filter(d => changed.includes(d.day_number))
+            .map(d => ({ day_number: d.day_number, places: d.places })),
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    } catch (e) {
+      setItinerary(prev); // roll back
+      setError(e instanceof Error ? e.message : 'Save failed');
+    }
+  };
+
+  const mutateDay = (dayNumber: number, fn: (places: ItineraryPlace[]) => ItineraryPlace[]) => {
+    if (!itinerary) return;
+    const nextDays = itinerary.days.map(d =>
+      d.day_number === dayNumber ? { ...d, places: fn([...(d.places || [])]) } : d
+    );
+    commitDays(nextDays, [dayNumber]);
+  };
+
+  const toggleLock = (dayNumber: number, idx: number) => {
+    mutateDay(dayNumber, places => {
+      places[idx] = { ...places[idx], locked: !places[idx].locked };
+      return places;
+    });
+  };
+
+  const removePlace = (dayNumber: number, idx: number) => {
+    mutateDay(dayNumber, places => {
+      places.splice(idx, 1);
+      return places;
+    });
+  };
+
+  const nudgePlace = (dayNumber: number, idx: number, delta: -1 | 1) => {
+    mutateDay(dayNumber, places => {
+      const j = idx + delta;
+      if (j < 0 || j >= places.length) return places;
+      [places[idx], places[j]] = [places[j], places[idx]];
+      return places;
+    });
+  };
+
+  const movePlaceToDay = (fromDay: number, idx: number, toDay: number) => {
+    if (!itinerary || fromDay === toDay) return;
+    let moved: ItineraryPlace | null = null;
+    const nextDays = itinerary.days.map(d => {
+      if (d.day_number === fromDay) {
+        const places = [...(d.places || [])];
+        [moved] = places.splice(idx, 1);
+        return { ...d, places };
+      }
+      return d;
+    }).map(d => {
+      if (d.day_number === toDay && moved) {
+        return { ...d, places: [...(d.places || []), moved] };
+      }
+      return d;
+    });
+    commitDays(nextDays, [fromDay, toDay]);
+  };
+
+  // Redraw a day: locked places stay, Pocket Compass refills the rest.
+  const redrawDay = async (dayNumber: number) => {
+    if (!itinerary || redrawingDay !== null) return;
+    const day = itinerary.days.find(d => d.day_number === dayNumber);
+    const unlocked = (day?.places || []).filter(p => !p.locked).length;
+    if (
+      unlocked > 0 &&
+      !confirm(`Redraw Day ${dayNumber}? ${unlocked} undecided place${unlocked !== 1 ? 's' : ''} will be replaced — locked places stay.`)
+    ) return;
+
+    setRedrawingDay(dayNumber);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Please sign in.');
+      const res = await fetch(`/api/itinerary/${itinerary.id}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ dayNumbers: [dayNumber] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Redraw failed');
+      setItinerary({ ...itinerary, days: data.days });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Redraw failed');
+    } finally {
+      setRedrawingDay(null);
+    }
+  };
+
+  const openPicker = async (dayNumber: number) => {
+    setPickerDay(dayNumber);
+    setLibrarySearch('');
+    setLibraryLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('places')
+        .select('id, name, description, category, address, lat, lng, photo_url, google_place_id, rating, price_level')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      setLibrary(data || []);
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
+  const addFromLibrary = (p: LibraryPlace) => {
+    if (pickerDay === null) return;
+    mutateDay(pickerDay, places => [
+      ...places,
+      {
+        name: p.name,
+        description: p.description || undefined,
+        category: p.category || undefined,
+        address: p.address || undefined,
+        lat: p.lat ?? undefined,
+        lng: p.lng ?? undefined,
+        photo_url: p.photo_url || undefined,
+        google_place_id: p.google_place_id || undefined,
+        rating: p.rating ?? undefined,
+        price_level: p.price_level ?? undefined,
+        why: 'From your places — you saved this one for a reason.',
+        locked: true,
+      },
+    ]);
+    setPickerDay(null);
+  };
 
   // -------------------- Loading view --------------------
 
@@ -375,24 +555,50 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
               ))}
             </div>
 
+            {error && (
+              <div className="alert alert-error animate-slide-up mb-6">{error}</div>
+            )}
+
             <div className="space-y-12">
               {itinerary.days.map(d => (
                 <section key={d.day_number} className="animate-slide-up">
-                  <div className="flex items-baseline gap-3 mb-2">
+                  <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
                     <span className="font-display text-3xl sm:text-4xl font-semibold" style={{ color: dayColor(d.day_number) }}>
                       Day {d.day_number}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openPicker(d.day_number)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-sea-mist bg-off-white text-xs font-sans font-medium text-ocean-depth hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <Plus size={13} />
+                        Add place
+                      </button>
+                      <button
+                        onClick={() => redrawDay(d.day_number)}
+                        disabled={redrawingDay !== null}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-accent/50 bg-accent-subtle text-xs font-sans font-semibold text-accent-dark hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
+                        title="Locked places stay — Pocket Compass refills the rest"
+                      >
+                        {redrawingDay === d.day_number ? (
+                          <div className="spinner-minimal" style={{ width: 13, height: 13, borderWidth: 2 }} />
+                        ) : (
+                          <Sparkles size={13} />
+                        )}
+                        Redraw day
+                      </button>
+                    </div>
                   </div>
                   {d.narrative && (
                     <p className="text-lg leading-relaxed text-ocean-grey font-serif italic mb-6 max-w-3xl">
                       {d.narrative}
                     </p>
                   )}
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className={`grid sm:grid-cols-2 gap-4 ${redrawingDay === d.day_number ? 'opacity-40 pointer-events-none' : ''}`} style={{ transition: 'opacity 0.3s ease' }}>
                     {(d.places || []).map((p, i) => (
                       <article
                         key={`${d.day_number}-${i}-${p.google_place_id || p.name}`}
-                        className="rounded-xl overflow-hidden bg-off-white border-2 border-sea-mist shadow-rustic-sm hover:shadow-rustic-lg transition-shadow"
+                        className={`rounded-xl overflow-hidden bg-off-white border-2 shadow-rustic-sm hover:shadow-rustic-lg transition-shadow ${p.locked ? 'border-accent/60' : 'border-sea-mist'}`}
                       >
                         {p.photo_url && (
                           <div className="relative w-full h-44 bg-secondary-subtle">
@@ -404,12 +610,20 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                             >
                               Day {d.day_number} · #{i + 1}
                             </div>
+                            {p.locked && (
+                              <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent text-white text-xs font-sans font-semibold shadow-rustic-md">
+                                <Lock size={10} /> Decided
+                              </div>
+                            )}
                           </div>
                         )}
                         <div className="p-4">
                           <div className="flex items-start justify-between gap-3 mb-1">
                             <h3 className="font-serif font-semibold text-lg text-midnight-blue leading-tight">
                               {p.name}
+                              {p.locked && !p.photo_url && (
+                                <Lock size={13} className="inline ml-2 text-accent-dark" />
+                              )}
                             </h3>
                             {p.rating != null && (
                               <span className="flex items-center gap-1 text-sm text-accent-dark shrink-0 mt-0.5 font-sans">
@@ -437,6 +651,54 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                               <span className="truncate">{p.address}</span>
                             </div>
                           )}
+
+                          {/* Edit bar */}
+                          <div className="flex items-center gap-1 mt-3 pt-3 border-t border-sea-mist/60">
+                            <button
+                              onClick={() => toggleLock(d.day_number, i)}
+                              className={`p-1.5 rounded-md transition-colors ${p.locked ? 'text-accent-dark bg-accent-subtle' : 'text-driftwood hover:text-accent-dark hover:bg-accent-subtle'}`}
+                              title={p.locked ? 'Unlock — allow redraws to replace this' : 'Lock in — keep through redraws'}
+                            >
+                              {p.locked ? <Lock size={14} /> : <LockOpen size={14} />}
+                            </button>
+                            <button
+                              onClick={() => nudgePlace(d.day_number, i, -1)}
+                              disabled={i === 0}
+                              className="p-1.5 rounded-md text-driftwood hover:text-primary hover:bg-primary-subtle disabled:opacity-30 transition-colors"
+                              title="Move earlier"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              onClick={() => nudgePlace(d.day_number, i, 1)}
+                              disabled={i === (d.places?.length || 0) - 1}
+                              className="p-1.5 rounded-md text-driftwood hover:text-primary hover:bg-primary-subtle disabled:opacity-30 transition-colors"
+                              title="Move later"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                            {itinerary.days.length > 1 && (
+                              <select
+                                value={d.day_number}
+                                onChange={e => movePlaceToDay(d.day_number, i, parseInt(e.target.value, 10))}
+                                className="text-xs font-sans text-ocean-grey bg-transparent border border-sea-mist rounded-md px-1.5 py-1 hover:border-primary cursor-pointer"
+                                title="Move to another day"
+                              >
+                                {itinerary.days.map(dd => (
+                                  <option key={dd.day_number} value={dd.day_number}>
+                                    Day {dd.day_number}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <button
+                              onClick={() => removePlace(d.day_number, i)}
+                              className="p-1.5 rounded-md text-driftwood hover:text-error hover:bg-error-subtle transition-colors ml-auto"
+                              title="Remove from trip"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       </article>
                     ))}
@@ -446,6 +708,80 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
             </div>
           </div>
         </div>
+
+        {/* Add-from-library picker */}
+        {pickerDay !== null && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 modal-backdrop-clean" onClick={() => setPickerDay(null)} />
+            <div className="relative modal-clean w-full max-w-md p-5 max-h-[80vh] flex flex-col">
+              <button onClick={() => setPickerDay(null)} className="absolute top-3 right-3 btn-icon" aria-label="Close">
+                <X size={16} />
+              </button>
+              <h3 className="font-serif font-semibold text-lg text-midnight-blue mb-1">
+                Add to Day {pickerDay}
+              </h3>
+              <p className="text-xs text-ocean-grey font-sans mb-3">
+                From My Places — added as decided, survives redraws.
+              </p>
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-driftwood" />
+                <input
+                  type="text"
+                  value={librarySearch}
+                  onChange={e => setLibrarySearch(e.target.value)}
+                  placeholder="Search your places…"
+                  className="input-clean !min-h-[40px] !py-2 pl-9 text-sm"
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {libraryLoading ? (
+                  <div className="flex justify-center py-6"><div className="spinner-minimal" /></div>
+                ) : (
+                  (() => {
+                    const q = librarySearch.trim().toLowerCase();
+                    const matches = library.filter(p =>
+                      !q || p.name.toLowerCase().includes(q) || (p.address || '').toLowerCase().includes(q)
+                    );
+                    if (!matches.length) {
+                      return (
+                        <p className="text-sm text-ocean-grey font-serif italic py-4 text-center">
+                          {library.length ? 'No matches.' : 'No saved places yet — ask the Guide.'}
+                        </p>
+                      );
+                    }
+                    return matches.map(p => {
+                      const inTrip = tripHasPlace(placeKey(p));
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => !inTrip && addFromLibrary(p)}
+                          disabled={inTrip}
+                          className={`w-full text-left p-3 rounded-lg border-2 transition-colors flex items-center gap-3 ${inTrip ? 'border-sea-mist/60 opacity-50 cursor-default' : 'border-sea-mist bg-off-white hover:border-primary/50'}`}
+                        >
+                          {p.photo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={photoSrc(p.photo_url)} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-primary-subtle flex items-center justify-center flex-shrink-0">
+                              <MapPin size={16} className="text-primary" />
+                            </div>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-serif font-semibold text-sm text-midnight-blue truncate">{p.name}</span>
+                            <span className="block text-xs text-ocean-grey font-sans truncate">
+                              {[p.category, p.address].filter(Boolean).join(' · ')}
+                            </span>
+                          </span>
+                          {inTrip && <span className="text-[10px] font-sans text-driftwood uppercase tracking-wide flex-shrink-0">In trip</span>}
+                        </button>
+                      );
+                    });
+                  })()
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -612,6 +948,30 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Start / end anchors */}
+          <div className="mb-6 grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-label block mb-2">Starting from / staying at</label>
+              <input
+                type="text"
+                value={startPoint}
+                onChange={e => setStartPoint(e.target.value)}
+                placeholder="Hotel Lutetia, Gare de Lyon, Shibuya…"
+                className="input-clean"
+              />
+            </div>
+            <div>
+              <label className="text-label block mb-2">Ending at</label>
+              <input
+                type="text"
+                value={endPoint}
+                onChange={e => setEndPoint(e.target.value)}
+                placeholder="CDG airport, ferry terminal…"
+                className="input-clean"
+              />
             </div>
           </div>
 

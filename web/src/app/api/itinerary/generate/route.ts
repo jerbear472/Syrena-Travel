@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { authFromRequest } from '@/lib/auth-server';
 import { verifyAndEnrichPlace, EnrichedPlace } from '@/lib/place-cache';
+import { orderByProximity } from '@/lib/itinerary-geo';
 
 // Vercel function execution limit. Sonnet generation + 40 Google verifies
 // can run 30–50s for a 10-day trip; 60s gives headroom.
@@ -39,56 +40,6 @@ interface LlmItinerary {
 const verifyAndEnrichWithGoogle = (place: LlmPlace) =>
   verifyAndEnrichPlace(place, { photoMaxWidth: 600 });
 
-// Great-circle distance in km between two coordinates.
-function haversineKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number }
-): number {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
-// Reorder a day's stops along a sensible visiting path so the route doesn't
-// cross town and double back. Greedy nearest-neighbor: keep the first place
-// as the anchor (often the intended morning start), then always hop to the
-// closest remaining stop. Deterministic — does not depend on the model
-// ordering the places correctly.
-function orderByProximity<T extends { lat?: number | null; lng?: number | null }>(
-  places: T[]
-): T[] {
-  const hasCoords = (p: T): p is T & { lat: number; lng: number } =>
-    typeof p.lat === 'number' && typeof p.lng === 'number';
-
-  const routable = places.filter(hasCoords);
-  const unroutable = places.filter(p => !hasCoords(p));
-  if (routable.length < 3) return places;
-
-  const remaining = [...routable];
-  const ordered = [remaining.shift()!];
-  while (remaining.length) {
-    const last = ordered[ordered.length - 1];
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    remaining.forEach((p, i) => {
-      const d = haversineKm(last, p);
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = i;
-      }
-    });
-    ordered.push(remaining.splice(bestIdx, 1)[0]);
-  }
-  // Coord-less stops can't be routed — keep them at the end.
-  return [...ordered, ...unroutable];
-}
-
 const ITINERARY_SYSTEM_PROMPT = `You are Pocket Compass — part concierge, part poet, part that friend who somehow always knows the perfect spot. You're building MULTI-DAY ITINERARIES now, not single recommendations. Same impeccable taste, same warm-witty voice, same zero pretension.
 
 YOUR JOB:
@@ -118,6 +69,7 @@ PLACE QUALITY:
 CONSTRAINTS:
 - Respect "avoids" absolutely. "No Paris" means zero places in Paris. "Food focused" means weight toward restaurants/cafes/markets. "No nightlife" means no bars after dark.
 - Respect "must-sees" by including them naturally on the appropriate day.
+- START / END POINTS: when the user gives a start point (hotel, neighborhood, arrival station/airport), Day 1 begins near it and each day's cluster is chosen with it as home base — early stops close to home, the day arcing out and back. When they give an end point, the FINAL day drifts toward it and ends nearby (nobody wants a 90-minute dash to the airport after dinner across town).
 
 CRITICAL ABOUT REAL PLACES:
 Every recommendation gets verified against Google Places. If a place doesn't exist or you're <95% sure, drop it. Better 4 real places per day than 5 with one hallucinated. Use the full official name (the one on Google Maps), not a colloquial nickname.
@@ -203,6 +155,8 @@ interface GenerateBody {
     avoids?: string[];
     pace?: 'relaxed' | 'standard' | 'packed';
     mustSees?: string[];
+    startPoint?: string;
+    endPoint?: string;
   };
 }
 
@@ -240,6 +194,12 @@ export async function POST(request: NextRequest) {
     }
     if (constraints?.avoids?.length) {
       constraintLines.push(`Avoid: ${constraints.avoids.join(', ')}`);
+    }
+    if (constraints?.startPoint) {
+      constraintLines.push(`Trip starts at / staying near: ${constraints.startPoint}`);
+    }
+    if (constraints?.endPoint) {
+      constraintLines.push(`Trip ends at: ${constraints.endPoint}`);
     }
 
     const userMessage = [
