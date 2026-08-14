@@ -7,6 +7,7 @@ import {
   Building2, Trees, ShoppingBag, Landmark, Moon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import Image from 'next/image';
 import { dayColor } from '@/lib/itinerary-colors';
 
 interface ItineraryPlace {
@@ -278,8 +279,14 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
     const stage = CHARTING_STAGES[chartStage];
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-8 animate-fade-in">
-        <div className="w-16 h-16 rounded-full bg-compass-gradient flex items-center justify-center shadow-rustic-lg animate-gentle-pulse mb-6">
-          <Compass className="text-white" size={30} />
+        <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-rustic-lg animate-gentle-pulse mb-6 overflow-hidden">
+          <Image
+            src="/pocket-compass-star.png"
+            alt="Charting"
+            width={64}
+            height={64}
+            className="object-cover w-full h-full"
+          />
         </div>
         <h2 className="heading-2 mb-4">Charting your course</h2>
         <div className="w-full max-w-xs h-1.5 rounded-full bg-sea-mist overflow-hidden mb-5">
@@ -463,8 +470,14 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
         </div>
         <div className="px-6 py-5">
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex w-12 h-12 rounded-xl bg-compass-gradient items-center justify-center shadow-rustic-md">
-              <MapPin className="text-white" size={24} />
+            <div className="hidden sm:flex w-12 h-12 rounded-xl items-center justify-center shadow-rustic-md overflow-hidden">
+              <Image
+                src="/pocket-compass-star.png"
+                alt="Plan a Trip"
+                width={48}
+                height={48}
+                className="object-cover w-full h-full"
+              />
             </div>
             <div>
               <h1 className="heading-2">Plan a Trip</h1>

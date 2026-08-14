@@ -7,6 +7,7 @@ import {
   Building2, LayoutGrid,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import Image from 'next/image';
 
 interface Place {
   name: string;
@@ -303,8 +304,14 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
         </div>
         <div className="px-6 py-5">
           <div className="flex items-center gap-4 mb-1">
-            <div className="hidden sm:flex w-12 h-12 rounded-xl bg-compass-gradient items-center justify-center shadow-rustic-md">
-              <Compass className="text-white" size={26} />
+            <div className="hidden sm:flex w-12 h-12 rounded-xl items-center justify-center shadow-rustic-md overflow-hidden">
+              <Image
+                src="/pocket-compass-star.png"
+                alt="The Guide"
+                width={48}
+                height={48}
+                className="object-cover w-full h-full"
+              />
             </div>
             <div>
               <h1 className="heading-2 flex items-center gap-2">
@@ -388,10 +395,16 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
           {loading && (
             <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
               <div className="relative mb-6">
-                <div className="w-16 h-16 rounded-full bg-compass-gradient flex items-center justify-center shadow-rustic-lg">
-                  <Compass className="text-white animate-gentle-pulse" size={30} />
+                <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-rustic-lg overflow-hidden">
+                  <Image
+                    src="/pocket-compass-star.png"
+                    alt="Searching"
+                    width={64}
+                    height={64}
+                    className="object-cover w-full h-full animate-gentle-pulse"
+                  />
                 </div>
-                <div className="absolute inset-0 rounded-full border-2 border-accent/40 animate-[spin_3s_linear_infinite]" style={{ borderTopColor: 'transparent' }} />
+                <div className="absolute -inset-1 rounded-full border-2 border-accent/40 animate-[spin_3s_linear_infinite]" style={{ borderTopColor: 'transparent' }} />
               </div>
               <p className="text-ocean-grey font-serif italic text-center">
                 {LOADING_STAGES[loadingStage]}

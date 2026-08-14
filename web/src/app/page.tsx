@@ -321,8 +321,14 @@ export default function HomePage() {
         <div className="p-4 border-b-2 border-sea-mist hover:bg-sea-mist/30 transition-colors flex-shrink-0">
           <div className={`flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
             <div className="flex items-center gap-3">
-              <div className="relative w-14 h-14 flex-shrink-0 bg-compass-gradient rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
-                <Compass className="text-white" size={32} strokeWidth={1.75} />
+              <div className="relative w-14 h-14 flex-shrink-0 rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
+                <Image
+                  src="/pocket-compass-star.png"
+                  alt="Pocket Compass"
+                  width={56}
+                  height={56}
+                  className="object-cover w-full h-full"
+                />
               </div>
               {isSidebarOpen && (
                 <div>
@@ -678,8 +684,14 @@ export default function HomePage() {
               {!isAuthenticated && (
                 <div className="absolute bottom-6 left-6 right-6 sm:right-auto card-minimal max-w-md animate-slide-up p-6 shadow-rustic-xl">
                   <div className="flex items-center gap-4 mb-5">
-                    <div className="relative w-20 h-20 bg-compass-gradient rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
-                      <Compass className="text-white" size={44} strokeWidth={1.5} />
+                    <div className="relative w-20 h-20 rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
+                      <Image
+                        src="/pocket-compass-star.png"
+                        alt="Pocket Compass"
+                        width={80}
+                        height={80}
+                        className="object-cover w-full h-full"
+                      />
                     </div>
                     <div>
                       <h3 className="heading-3">

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, Compass } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -164,8 +165,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           </button>
 
           <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-compass-gradient rounded-xl shadow-rustic-md overflow-hidden">
-              <Compass className="text-white" size={36} strokeWidth={1.5} />
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-xl shadow-rustic-md overflow-hidden">
+              <Image
+                src="/pocket-compass-star.png"
+                alt="Pocket Compass"
+                width={64}
+                height={64}
+                className="object-cover w-full h-full"
+              />
             </div>
             <h2 className="heading-2 mb-2">
               {isSignUp ? 'Create Account' : 'Welcome Back'}
