@@ -318,10 +318,10 @@ export default function HomePage() {
         }}
       >
         {/* Logo Section */}
-        <div className="p-4 border-b-2 border-sea-mist hover:bg-sea-mist/30 transition-colors flex-shrink-0">
+        <div className={`${isSidebarOpen ? 'p-4' : 'px-2 py-4'} border-b-2 border-sea-mist hover:bg-sea-mist/30 transition-colors flex-shrink-0`}>
           <div className={`flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
             <div className="flex items-center gap-3">
-              <div className="relative w-14 h-14 flex-shrink-0 rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center">
+              <div className={`relative ${isSidebarOpen ? 'w-14 h-14' : 'w-10 h-10'} flex-shrink-0 rounded-xl shadow-rustic-md overflow-hidden flex items-center justify-center`}>
                 <Image
                   src="/pocket-compass-star.png"
                   alt="Pocket Compass"
@@ -352,7 +352,7 @@ export default function HomePage() {
         </div>
 
         {/* User Section */}
-        <div className="p-4 border-b-2 border-sea-mist flex-shrink-0">
+        <div className={`${isSidebarOpen ? 'p-4' : 'px-2 py-4'} border-b-2 border-sea-mist flex-shrink-0`}>
           {isAuthenticated ? (
             <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
               <button
@@ -389,7 +389,11 @@ export default function HomePage() {
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
-              className="w-full btn-primary flex items-center justify-center gap-2"
+              className={
+                isSidebarOpen
+                  ? 'w-full btn-primary flex items-center justify-center gap-2'
+                  : 'w-full btn-icon bg-primary text-white hover:bg-primary-dark border-2 border-primary-dark flex items-center justify-center'
+              }
             >
               {isSidebarOpen ? (
                 <>
