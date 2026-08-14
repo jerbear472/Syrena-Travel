@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
+import { photoSrc } from '@/lib/photo';
 
 interface Place {
   name: string;
@@ -484,7 +485,7 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
                       <div className="relative w-full h-52 bg-secondary-subtle">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={place.photo_url}
+                          src={photoSrc(place.photo_url)}
                           alt={place.name}
                           className="w-full h-full object-cover"
                           loading="lazy"

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { anonClient } from '@/lib/auth-server';
 import { dayColor } from '@/lib/itinerary-colors';
+import { photoSrc } from '@/lib/photo';
 import type { Metadata } from 'next';
 
 interface ItineraryPlace {
@@ -187,7 +188,7 @@ export default async function ItineraryPage({
                     <div className="relative w-full h-48 bg-secondary-subtle">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={p.photo_url}
+                        src={photoSrc(p.photo_url)}
                         alt={p.name || ''}
                         className="w-full h-full object-cover"
                       />

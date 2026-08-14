@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 import { dayColor } from '@/lib/itinerary-colors';
+import { photoSrc } from '@/lib/photo';
 
 interface ItineraryPlace {
   name: string;
@@ -396,7 +397,7 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                         {p.photo_url && (
                           <div className="relative w-full h-44 bg-secondary-subtle">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p.photo_url} alt={p.name || ''} className="w-full h-full object-cover" loading="lazy" />
+                            <img src={photoSrc(p.photo_url)} alt={p.name || ''} className="w-full h-full object-cover" loading="lazy" />
                             <div
                               className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-sans font-medium text-white"
                               style={{ background: dayColor(d.day_number) }}
