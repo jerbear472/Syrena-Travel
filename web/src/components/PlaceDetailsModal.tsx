@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, MapPin, Star, MessageCircle, CheckCircle2, User2, Calendar, Send, Heart, Navigation } from 'lucide-react';
+import { X, MapPin, Star, MessageCircle, CheckCircle2, User2, Calendar, Send, Heart, Navigation, Pencil, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { categoryMeta } from '@/lib/categories';
 import Image from 'next/image';
+import EditPlaceModal from '@/components/EditPlaceModal';
 
 interface PlaceDetailsModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export default function PlaceDetailsModal({
   const [hasVisited, setHasVisited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const supabase = createClient();
 
@@ -40,10 +43,6 @@ export default function PlaceDetailsModal({
     setLoading(true);
 
     try {
-      console.log('PlaceDetailsModal - place data:', place);
-      console.log('PlaceDetailsModal - place.profile:', place.profile);
-      console.log('PlaceDetailsModal - place.profile?.odyssey_icon:', place.profile?.odyssey_icon);
-
       // Check if current user is the owner
       const { data: { user } } = await supabase.auth.getUser();
       setIsOwner(user?.id === place.user_id);
@@ -62,12 +61,13 @@ export default function PlaceDetailsModal({
           console.log('Comments table does not exist. Please run the setup SQL.');
         }
       } else if (commentsData) {
-        // Fetch user emails for comments
+        // Resolve commenter names from profiles (auth.users is not
+        // queryable from the browser client)
         const enrichedComments = await Promise.all(
           commentsData.map(async (comment) => {
             const { data: userData } = await supabase
-              .from('auth.users')
-              .select('email')
+              .from('profiles')
+              .select('display_name, username, email')
               .eq('id', comment.created_by)
               .single();
             return { ...comment, user: userData };
@@ -83,8 +83,7 @@ export default function PlaceDetailsModal({
         .eq('place_id', place.id);
 
       if (visitsError) {
-        console.error('Error loading visits:', visitsError);
-        console.error('Visits error details:', JSON.stringify(visitsError, null, 2));
+        console.error('Error loading visits:', visitsError.code);
         // Table might not exist yet
         if (visitsError.code === '42P01') {
           console.log('Visits table does not exist. Please run the setup SQL.');
@@ -144,6 +143,24 @@ export default function PlaceDetailsModal({
     }
   };
 
+  const handleDeletePlace = async () => {
+    if (!window.confirm(`Delete "${place.name}" from your places? This can't be undone.`)) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from('places')
+      .delete()
+      .eq('id', place.id);
+    setDeleting(false);
+
+    if (error) {
+      console.error('Error deleting place:', error);
+      alert('Failed to delete place. Please try again.');
+    } else {
+      onPlaceUpdate?.();
+      onClose();
+    }
+  };
+
   const handleToggleVisit = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -192,7 +209,7 @@ export default function PlaceDetailsModal({
     <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4">
       <div className="modal-clean w-full max-w-2xl max-h-[85vh] overflow-hidden">
         {/* Header */}
-        <div className="relative p-6 border-b border-gray-200">
+        <div className="relative p-6 border-b-2 border-sea-mist">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 btn-icon"
@@ -219,7 +236,7 @@ export default function PlaceDetailsModal({
             </div>
             <div className="flex-1">
               <h2 className="heading-2 mb-1">{place.name}</h2>
-              <div className="flex items-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-4 text-sm text-ocean-grey">
                 <span className="capitalize">{place.category}</span>
                 {place.rating > 0 && (
                   <div className="flex items-center gap-1">
@@ -227,12 +244,13 @@ export default function PlaceDetailsModal({
                       <Star
                         key={i}
                         size={14}
-                        className={i < place.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}
+                        className={i < Math.round(place.rating) ? 'text-siren-gold fill-siren-gold' : 'text-sea-mist'}
                       />
                     ))}
+                    <span className="text-xs text-ocean-grey ml-1">{Number(place.rating).toFixed(1)}</span>
                   </div>
                 )}
-                <span>Added {new Date(place.created_at).toLocaleDateString()}</span>
+                {place.created_at && <span>Added {new Date(place.created_at).toLocaleDateString()}</span>}
               </div>
             </div>
           </div>
@@ -243,21 +261,21 @@ export default function PlaceDetailsModal({
         </div>
 
         {/* Stats Bar */}
-        <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 bg-cream/60 border-b-2 border-sea-mist">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <MessageCircle size={18} className="text-gray-500" />
+              <MessageCircle size={18} className="text-ocean-grey" />
               <span className="text-sm font-medium">{comments.length} Comments</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={18} className="text-gray-500" />
+              <CheckCircle2 size={18} className="text-ocean-grey" />
               <span className="text-sm font-medium">{visits.length} Visited</span>
             </div>
           </div>
 
           <button
             onClick={handleToggleVisit}
-            className={`btn-secondary flex items-center gap-2 ${hasVisited ? 'bg-green-50 border-green-300 text-green-700' : ''}`}
+            className={`btn-secondary flex items-center gap-2 ${hasVisited ? 'bg-success-subtle border-success/40 text-success' : ''}`}
           >
             <CheckCircle2 size={16} />
             <span>{hasVisited ? 'Visited' : 'Mark as Visited'}</span>
@@ -265,14 +283,14 @@ export default function PlaceDetailsModal({
         </div>
 
         {/* Content - Scrollable */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 280px)' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'max(200px, calc(85vh - 280px))' }}>
           {/* Comments Section */}
           <div className="p-6">
             <h3 className="heading-3 mb-4">Comments</h3>
 
             {/* Add Comment */}
             <div className="flex gap-3 mb-6">
-              <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+              <div className="w-8 h-8 bg-midnight-blue rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
                 {currentUser?.email?.[0]?.toUpperCase() || 'U'}</div>
                 <div className="flex-1 flex gap-2">
                   <input
@@ -299,29 +317,32 @@ export default function PlaceDetailsModal({
                 <div className="spinner-minimal mx-auto"></div>
               </div>
             ) : comments.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
+              <p className="text-center text-ocean-grey py-8">
                 No comments yet. Be the first to share your thoughts!
               </p>
             ) : (
               <div className="space-y-4">
-                {comments.map((comment) => (
+                {comments.map((comment) => {
+                  const commenterName = comment.user?.display_name || comment.user?.username || comment.user?.email?.split('@')[0] || 'Anonymous';
+                  return (
                   <div key={comment.id} className="flex gap-3">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 text-xs font-medium flex-shrink-0">
-                      {comment.user?.email?.[0]?.toUpperCase() || '?'}
+                    <div className="w-8 h-8 bg-sea-mist rounded-full flex items-center justify-center text-ocean-depth text-xs font-medium flex-shrink-0">
+                      {commenterName[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-gray-900">
-                          {comment.user?.email?.split('@')[0] || 'Anonymous'}
+                        <span className="text-sm font-medium text-midnight-blue">
+                          {commenterName}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-ocean-grey">
                           {new Date(comment.created_at).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700">{comment.comment}</p>
+                      <p className="text-sm text-ocean-depth">{comment.comment}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -333,9 +354,9 @@ export default function PlaceDetailsModal({
                   {visits.map((visit) => (
                     <div
                       key={visit.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full text-sm"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-sea-mist rounded-full text-sm"
                     >
-                      <CheckCircle2 size={14} className="text-green-600" />
+                      <CheckCircle2 size={14} className="text-success" />
                       <span>{visit.user?.email?.split('@')[0] || 'User'}</span>
                     </div>
                   ))}
@@ -347,13 +368,41 @@ export default function PlaceDetailsModal({
 
         {/* Footer */}
         {isOwner && (
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <p className="text-xs text-gray-500 text-center">
-              You created this place • Coordinates: {place.lat}, {place.lng}
+          <div className="p-4 border-t-2 border-sea-mist bg-cream/60 flex items-center justify-between gap-3">
+            <p className="text-xs text-ocean-grey">
+              You created this place • {Number(place.lat).toFixed(4)}, {Number(place.lng).toFixed(4)}
             </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5"
+              >
+                <Pencil size={14} />
+                Edit
+              </button>
+              <button
+                onClick={handleDeletePlace}
+                disabled={deleting}
+                className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5 text-error border-error/30 hover:bg-error-subtle disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {showEditModal && (
+        <EditPlaceModal
+          place={place}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => {
+            onPlaceUpdate?.();
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 }

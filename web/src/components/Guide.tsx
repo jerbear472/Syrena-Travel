@@ -108,6 +108,9 @@ export default function Guide({
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hydratedRef = useRef(false);
+  // Synchronous lock: the `loading` state guard alone can race two rapid
+  // Enter presses that land before React re-renders the disabled input.
+  const sendingRef = useRef(false);
 
   const supabase = createClient();
 
@@ -220,7 +223,8 @@ export default function Guide({
 
   const sendMessage = async (text?: string) => {
     const q = (text ?? input).trim();
-    if (!q || loading) return;
+    if (!q || loading || sendingRef.current) return;
+    sendingRef.current = true;
 
     const userMsg: ChatMessage = { id: nextId(), role: 'user', content: q };
     const thread = [...messages, userMsg];
@@ -262,6 +266,7 @@ export default function Guide({
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
+      sendingRef.current = false;
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }

@@ -66,7 +66,7 @@ export default function SearchBar({ onPlaceSelect, onAddCoordinates, isLoaded }:
       <div className="relative">
         <button
           onClick={() => setShowAddMenu(!showAddMenu)}
-          className="btn-icon bg-earth-brown text-cream hover:bg-rust border-2 border-rust h-full"
+          className="btn-icon bg-primary text-white hover:bg-primary-dark border-2 border-primary-dark h-full"
           aria-label="Add place"
         >
           <Plus size={18} />
@@ -82,34 +82,34 @@ export default function SearchBar({ onPlaceSelect, onAddCoordinates, isLoaded }:
             />
 
             {/* Menu */}
-            <div className="absolute right-0 mt-2 w-56 bg-off-white rounded-lg shadow-rustic-lg border-2 border-sand py-2 z-20 animate-slide-up">
+            <div className="absolute right-0 mt-2 w-56 bg-off-white rounded-lg shadow-rustic-lg border-2 border-sea-mist py-2 z-20 animate-slide-up">
               <button
                 onClick={() => {
                   setShowAddMenu(false);
                   // This will be handled by map click
                 }}
-                className="w-full px-4 py-3 text-left hover:bg-sand transition-colors flex items-center gap-3"
+                className="w-full px-4 py-3 text-left hover:bg-cream transition-colors flex items-center gap-3"
               >
-                <MapPin size={18} className="text-rust" />
+                <MapPin size={18} className="text-primary" />
                 <div>
-                  <div className="text-sm font-serif font-semibold text-earth-brown">Click on Map</div>
-                  <div className="text-xs text-terracotta italic">Add from Google location</div>
+                  <div className="text-sm font-serif font-semibold text-midnight-blue">Click on Map</div>
+                  <div className="text-xs text-ocean-grey italic">Add from Google location</div>
                 </div>
               </button>
 
-              <div className="border-t border-sand my-1" />
+              <div className="border-t border-sea-mist my-1" />
 
               <button
                 onClick={() => {
                   setShowAddMenu(false);
                   onAddCoordinates();
                 }}
-                className="w-full px-4 py-3 text-left hover:bg-sand transition-colors flex items-center gap-3"
+                className="w-full px-4 py-3 text-left hover:bg-cream transition-colors flex items-center gap-3"
               >
-                <MapPin size={18} className="text-rust" />
+                <MapPin size={18} className="text-primary" />
                 <div>
-                  <div className="text-sm font-serif font-semibold text-earth-brown">Add Coordinates</div>
-                  <div className="text-xs text-terracotta italic">Enter lat/lng manually</div>
+                  <div className="text-sm font-serif font-semibold text-midnight-blue">Add Coordinates</div>
+                  <div className="text-xs text-ocean-grey italic">Enter lat/lng manually</div>
                 </div>
               </button>
             </div>

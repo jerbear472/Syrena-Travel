@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  MapPin, Clock, Heart, Grid3x3, List, Search,
-  MoreVertical, Globe2, TrendingUp, ChevronDown, Filter,
-  Plus, Utensils, Coffee, Camera, Mountain, ShoppingBag, Hotel, Trash2,
-  Building2, Gem, Users, MoreHorizontal, Menu, Zap, Eye
+  MapPin, Grid3x3, List, Search, Globe2, ChevronDown, Filter,
+  Plus, Trash2, Zap, Eye, Pencil
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { categoryMeta } from '@/lib/categories';
+import { photoSrc } from '@/lib/photo';
+import AddByCoordinatesModal from '@/components/AddByCoordinatesModal';
+import AddPlaceModal from '@/components/AddPlaceModal';
+import EditPlaceModal from '@/components/EditPlaceModal';
 
 interface MyPlacesProps {
   onNavigateToPlace?: (lat: number, lng: number) => void;
@@ -18,14 +20,18 @@ interface MyPlacesProps {
 }
 
 export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSidebar, onEditProfile }: MyPlacesProps) {
-  const [selectedFilter, setSelectedFilter] = useState('recent');
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [editingPlace, setEditingPlace] = useState<any | null>(null);
+  const [showCoordsModal, setShowCoordsModal] = useState(false);
+  const [addCoords, setAddCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const supabase = createClient();
 
@@ -35,6 +41,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
 
   const loadUserPlaces = async () => {
     setLoading(true);
+    setLoadError(false);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       // Load places
@@ -46,6 +53,9 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
 
       if (data && !error) {
         setSavedPlaces(data);
+      } else if (error) {
+        console.error('Error loading places:', error.code);
+        setLoadError(true);
       }
 
       // Load user profile for XP/Level
@@ -62,11 +72,12 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
     setLoading(false);
   };
 
-  const deletePlace = async (placeId: string) => {
+  const deletePlace = async (place: any) => {
+    if (!window.confirm(`Delete "${place.name}" from your places? This can't be undone.`)) return;
     const { error } = await supabase
       .from('places')
       .delete()
-      .eq('id', placeId);
+      .eq('id', place.id);
 
     if (!error) {
       loadUserPlaces();
@@ -76,18 +87,35 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
   // Get category icon
   const getCategoryIcon = (category: string) => categoryMeta(category).Icon;
 
-  // Filter places based on search
-  const filteredPlaces = savedPlaces.filter(place =>
-    place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    place.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isRecent = (p: any) => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return new Date(p.created_at) > weekAgo;
+  };
+
+  // Search → filter chip → sort
+  const filteredPlaces = savedPlaces
+    .filter(place =>
+      place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      place.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter(place => {
+      if (selectedFilter === 'recent') return isRecent(place);
+      if (selectedFilter === 'favorites') return (place.rating ?? 0) >= 4;
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'alphabetical': return a.name.localeCompare(b.name);
+        case 'rating': return (b.rating ?? 0) - (a.rating ?? 0);
+        case 'visited': return (b.visit_count ?? 0) - (a.visit_count ?? 0);
+        default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
 
   const filters = [
-    { id: 'recent', name: 'Recently Added', count: savedPlaces.filter(p => {
-      const dayAgo = new Date();
-      dayAgo.setDate(dayAgo.getDate() - 7);
-      return new Date(p.created_at) > dayAgo;
-    }).length },
+    { id: 'all', name: 'All', count: savedPlaces.length },
+    { id: 'recent', name: 'Recently Added', count: savedPlaces.filter(isRecent).length },
     { id: 'favorites', name: 'Top Rated', count: savedPlaces.filter(p => p.rating >= 4).length }
   ];
 
@@ -118,7 +146,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
   return (
     <div className="h-full flex flex-col bg-cream">
       {/* Header */}
-      <header className="header-clean border-b-2 border-sand">
+      <header className="header-clean border-b-2 border-sea-mist">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="heading-2">My Places</h1>
@@ -127,9 +155,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
             </p>
           </div>
           <button
-            onClick={() => {
-              alert('Add Place feature coming soon! You can add places by clicking on the map in Explore tab.');
-            }}
+            onClick={() => setShowCoordsModal(true)}
             className="btn-primary flex items-center gap-2">
             <Plus size={16} />
             <span>Add Place</span>
@@ -156,7 +182,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 {stat.label}
               </p>
               {stat.subtext && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-driftwood mt-1">
                   {stat.subtext}
                 </p>
               )}
@@ -173,8 +199,8 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 onClick={() => setSelectedFilter(filter.id)}
                 className={`whitespace-nowrap px-4 py-2 rounded-md text-sm font-sans font-medium transition-all ${
                   selectedFilter === filter.id
-                    ? 'bg-earth-brown text-cream border-2 border-rust shadow-rustic-md'
-                    : 'bg-off-white text-midnight-blue border-2 border-warm-stone hover:bg-sand'
+                    ? 'bg-primary text-white border-2 border-primary-dark shadow-rustic-md'
+                    : 'bg-off-white text-midnight-blue border-2 border-sea-mist hover:border-primary/50'
                 }`}
               >
                 {filter.name}
@@ -188,7 +214,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
             {onEditProfile && (
               <button
                 onClick={onEditProfile}
-                className="whitespace-nowrap px-4 py-2 rounded-md text-sm font-sans font-medium bg-deep-teal text-cream border-2 border-stone-blue hover:bg-ocean-depth transition-all shadow-rustic-md"
+                className="whitespace-nowrap px-4 py-2 rounded-md text-sm font-sans font-medium bg-off-white text-midnight-blue border-2 border-sea-mist hover:border-primary/50 transition-all"
               >
                 Edit Profile
               </button>
@@ -222,7 +248,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
               </button>
 
               {showSortDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-off-white rounded-md shadow-rustic-lg border-2 border-sand py-1 z-10 animate-slide-up">
+                <div className="absolute right-0 mt-2 w-48 bg-off-white rounded-md shadow-rustic-lg border-2 border-sea-mist py-1 z-10 animate-slide-up">
                   {sortOptions.map((option) => (
                     <button
                       key={option.id}
@@ -230,8 +256,8 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                         setSortBy(option.id);
                         setShowSortDropdown(false);
                       }}
-                      className={`w-full px-4 py-2 text-left text-sm font-serif hover:bg-sand transition-colors ${
-                        sortBy === option.id ? 'text-midnight-blue bg-sand font-semibold' : 'text-ocean-grey'
+                      className={`w-full px-4 py-2 text-left text-sm font-serif hover:bg-cream transition-colors ${
+                        sortBy === option.id ? 'text-midnight-blue bg-cream font-semibold' : 'text-ocean-grey'
                       }`}
                     >
                       {option.label}
@@ -242,14 +268,14 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-off-white border-2 border-warm-stone rounded-md overflow-hidden">
+            <div className="flex items-center bg-off-white border-2 border-sea-mist rounded-md overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
                 aria-label="Grid view"
                 className={`p-2 transition-all ${
                   viewMode === 'grid'
-                    ? 'bg-earth-brown text-cream'
-                    : 'text-midnight-blue hover:bg-sand'
+                    ? 'bg-primary text-white'
+                    : 'text-midnight-blue hover:bg-cream'
                 }`}
               >
                 <Grid3x3 size={16} />
@@ -259,8 +285,8 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                 aria-label="List view"
                 className={`p-2 transition-all ${
                   viewMode === 'list'
-                    ? 'bg-earth-brown text-cream'
-                    : 'text-midnight-blue hover:bg-sand'
+                    ? 'bg-primary text-white'
+                    : 'text-midnight-blue hover:bg-cream'
                 }`}
               >
                 <List size={16} />
@@ -271,7 +297,7 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6 lg:p-8 bg-sand/20">
+      <div className="flex-1 overflow-auto p-6 lg:p-8 bg-cream/60">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -279,10 +305,15 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
               <p className="text-driftwood font-serif">Loading your places...</p>
             </div>
           </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center h-full animate-fade-in">
+            <p className="text-body mb-4">Couldn't load your places.</p>
+            <button onClick={loadUserPlaces} className="btn-secondary">Try again</button>
+          </div>
         ) : filteredPlaces.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full animate-fade-in">
             <div className="text-center max-w-md">
-              <div className="w-20 h-20 bg-sand border-2 border-warm-stone rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-sea-mist border-2 border-stone-blue rounded-full flex items-center justify-center mx-auto mb-6">
                 <MapPin size={32} className="text-ocean-grey" />
               </div>
               <h3 className="heading-3 mb-3">
@@ -309,11 +340,21 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                   className="card-minimal animate-fade-in group hover:shadow-rustic-lg transition-all cursor-pointer"
                   onClick={() => {
                     if (onNavigateToPlace) {
-                      console.log('Navigating to place:', place.name, 'at', place.lat, place.lng);
                       onNavigateToPlace(Number(place.lat), Number(place.lng));
                     }
                   }}
                 >
+                  {place.photo_url && (
+                    <div className="relative w-full h-32 -m-4 mb-3 rounded-t-lg overflow-hidden" style={{ width: 'calc(100% + 2rem)' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photoSrc(place.photo_url)}
+                        alt={place.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: categoryMeta(place.category).subtle }}>
                       <CategoryIcon size={20} style={{ color: categoryMeta(place.category).color }} />
@@ -329,8 +370,18 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deletePlace(place.id);
+                        setEditingPlace(place);
                       }}
+                      title="Edit place"
+                      className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Pencil size={16} className="text-ocean-grey" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deletePlace(place);
+                      }}
+                      title="Delete place"
                       className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
                       <Trash2 size={16} className="text-ocean-grey" />
                     </button>
@@ -365,7 +416,6 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                   className="card-minimal animate-fade-in group hover:shadow-rustic-lg transition-all cursor-pointer"
                   onClick={() => {
                     if (onNavigateToPlace) {
-                      console.log('Navigating to place:', place.name, 'at', place.lat, place.lng);
                       onNavigateToPlace(Number(place.lat), Number(place.lng));
                     }
                   }}
@@ -396,14 +446,26 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deletePlace(place.id);
-                      }}
-                      className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 size={16} className="text-ocean-grey" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingPlace(place);
+                        }}
+                        title="Edit place"
+                        className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Pencil size={16} className="text-ocean-grey" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePlace(place);
+                        }}
+                        title="Delete place"
+                        className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 size={16} className="text-ocean-grey" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -411,6 +473,32 @@ export default function MyPlaces({ onNavigateToPlace, isSidebarOpen, onToggleSid
           </div>
         )}
       </div>
+
+      {/* Add place: coordinates first, then details */}
+      <AddByCoordinatesModal
+        isOpen={showCoordsModal}
+        onClose={() => setShowCoordsModal(false)}
+        onSubmit={(lat, lng) => {
+          setShowCoordsModal(false);
+          setAddCoords({ lat, lng });
+        }}
+      />
+      {addCoords && (
+        <AddPlaceModal
+          isOpen={true}
+          onClose={() => setAddCoords(null)}
+          latitude={addCoords.lat}
+          longitude={addCoords.lng}
+          onPlaceAdded={loadUserPlaces}
+        />
+      )}
+
+      {/* Edit place */}
+      <EditPlaceModal
+        place={editingPlace}
+        onClose={() => setEditingPlace(null)}
+        onSaved={loadUserPlaces}
+      />
     </div>
   );
 }

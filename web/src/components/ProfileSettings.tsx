@@ -220,7 +220,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
   return (
     <div className="h-full flex flex-col bg-cream">
       {/* Header */}
-      <header className="header-clean border-b-2 border-sand">
+      <header className="header-clean border-b-2 border-sea-mist">
         <div className="flex items-center gap-4 mb-6">
           <button
             onClick={onBack}
@@ -241,7 +241,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Profile Picture Section */}
           <div className="card-minimal p-6">
-            <h2 className="font-serif font-semibold text-earth-brown mb-4 text-lg">
+            <h2 className="font-serif font-semibold text-midnight-blue mb-4 text-lg">
               Profile Picture
             </h2>
             <div className="flex items-center gap-6">
@@ -299,7 +299,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
 
           {/* Odyssey Icon Selection */}
           <div className="card-minimal p-6">
-            <h2 className="font-serif font-semibold text-earth-brown mb-4 text-lg">
+            <h2 className="font-serif font-semibold text-midnight-blue mb-4 text-lg">
               Map Pin Icon
             </h2>
             <p className="text-sm text-ocean-grey mb-4">
@@ -313,7 +313,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
                   className={`relative aspect-square rounded-lg overflow-hidden border-4 transition-all hover:scale-105 ${
                     odysseyIcon === icon
                       ? 'border-deep-teal shadow-rustic-lg'
-                      : 'border-warm-stone hover:border-stone-blue'
+                      : 'border-sea-mist hover:border-stone-blue'
                   }`}
                   style={{ backgroundColor: '#2c3e50' }}
                 >
@@ -341,7 +341,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
 
           {/* Profile Information Section */}
           <div className="card-minimal p-6">
-            <h2 className="font-serif font-semibold text-earth-brown mb-4 text-lg">
+            <h2 className="font-serif font-semibold text-midnight-blue mb-4 text-lg">
               Profile Information
             </h2>
             <div className="space-y-4">
@@ -409,7 +409,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Award className="text-siren-gold" size={20} />
-                <h2 className="font-serif font-semibold text-earth-brown text-lg">
+                <h2 className="font-serif font-semibold text-midnight-blue text-lg">
                   My Recommendations
                 </h2>
               </div>
@@ -474,7 +474,7 @@ export default function ProfileSettings({ onBack }: ProfileSettingsProps) {
 
           {/* Profile Stats */}
           <div className="card-minimal p-6">
-            <h2 className="font-serif font-semibold text-earth-brown mb-4 text-lg">
+            <h2 className="font-serif font-semibold text-midnight-blue mb-4 text-lg">
               Your Stats
             </h2>
             <div className="grid grid-cols-3 gap-4">

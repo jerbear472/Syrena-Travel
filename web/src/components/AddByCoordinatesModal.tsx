@@ -13,6 +13,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [error, setError] = useState('');
+  const [locating, setLocating] = useState(false);
 
   const handleSubmit = () => {
     setError('');
@@ -42,19 +43,24 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
   };
 
   const handleGetCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLatitude(position.coords.latitude.toFixed(6));
-          setLongitude(position.coords.longitude.toFixed(6));
-        },
-        (error) => {
-          setError('Could not get your location');
-        }
-      );
-    } else {
+    if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
+      return;
     }
+    setError('');
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude.toFixed(6));
+        setLongitude(position.coords.longitude.toFixed(6));
+        setLocating(false);
+      },
+      () => {
+        setError('Could not get your location');
+        setLocating(false);
+      },
+      { timeout: 10000 }
+    );
   };
 
   if (!isOpen) return null;
@@ -63,7 +69,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
     <div className="fixed inset-0 modal-backdrop-clean z-50 flex items-center justify-center p-4">
       <div className="modal-clean w-full max-w-md">
         {/* Header */}
-        <div className="relative p-6 pb-4 border-b-2 border-sand">
+        <div className="relative p-6 pb-4 border-b-2 border-sea-mist">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 btn-icon"
@@ -86,18 +92,23 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
           {/* Get Current Location Button */}
           <button
             onClick={handleGetCurrentLocation}
-            className="w-full btn-secondary flex items-center justify-center gap-2"
+            disabled={locating}
+            className="w-full btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <Navigation size={18} />
-            <span>Use Current Location</span>
+            {locating ? (
+              <div className="spinner-minimal" style={{ width: 16, height: 16, borderWidth: 2 }} />
+            ) : (
+              <Navigation size={18} />
+            )}
+            <span>{locating ? 'Locating…' : 'Use Current Location'}</span>
           </button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-sand" />
+              <div className="w-full border-t-2 border-sea-mist" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-off-white px-3 text-terracotta uppercase tracking-wider font-sans font-semibold">Or enter manually</span>
+              <span className="bg-off-white px-3 text-ocean-grey uppercase tracking-wider font-sans font-semibold">Or enter manually</span>
             </div>
           </div>
 
@@ -107,7 +118,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
               Latitude *
             </label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-terracotta" size={16} />
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary" size={16} />
               <input
                 type="text"
                 value={latitude}
@@ -117,7 +128,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
                 autoFocus
               />
             </div>
-            <p className="text-xs text-terracotta mt-1 italic">Between -90 and 90</p>
+            <p className="text-xs text-driftwood mt-1 italic">Between -90 and 90</p>
           </div>
 
           {/* Longitude */}
@@ -126,7 +137,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
               Longitude *
             </label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-terracotta" size={16} />
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary" size={16} />
               <input
                 type="text"
                 value={longitude}
@@ -135,7 +146,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
                 placeholder="e.g., -122.4194"
               />
             </div>
-            <p className="text-xs text-terracotta mt-1 italic">Between -180 and 180</p>
+            <p className="text-xs text-driftwood mt-1 italic">Between -180 and 180</p>
           </div>
 
           {/* Error Message */}
@@ -147,7 +158,7 @@ export default function AddByCoordinatesModal({ isOpen, onClose, onSubmit }: Add
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-6 border-t-2 border-sand bg-sand/20">
+        <div className="flex gap-3 p-6 border-t-2 border-sea-mist bg-cream/60">
           <button
             onClick={onClose}
             className="flex-1 btn-secondary"

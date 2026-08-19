@@ -111,7 +111,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
 
   // Log when user odyssey icon changes
   useEffect(() => {
-    console.log('User odyssey icon updated to:', userOdysseyIcon);
   }, [userOdysseyIcon]);
 
   // Navigate to place when center prop changes
@@ -154,7 +153,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           }
         },
         (error) => {
-          console.log('Location access denied, using default location');
         }
       );
     }
@@ -271,6 +269,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         setLoadingPlaceDetails(false);
         if (detailStatus === google.maps.places.PlacesServiceStatus.OK && placeDetails) {
           resolve({
+            place_id: placeId,
             name: placeDetails.name || '',
             rating: placeDetails.rating || 0,
             priceLevel: placeDetails.price_level || 0,
@@ -290,18 +289,14 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   useEffect(() => {
     if (!map) return;
 
-    console.log('Setting up map click listener. isAuthenticated:', isAuthenticated);
 
     const clickListener = map.addListener('click', (event: google.maps.MapMouseEvent) => {
-      console.log('Map clicked!', { isAuthenticated, latLng: event.latLng });
       if (event.latLng) {
         if (!isAuthenticated) {
-          console.log('User not authenticated, ignoring click');
           return;
         }
         const lat = event.latLng.lat();
         const lng = event.latLng.lng();
-        console.log('User is authenticated, setting location:', { lat, lng });
 
         // Set location and trigger animation
         setClickedLocation({ lat, lng });
@@ -425,17 +420,14 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   }, []);
 
   const loadAllPlaces = async () => {
-    console.log('Loading all places... (MapView mounted/reloaded)');
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       // Not logged in - show no places
-      console.log('No user logged in');
       setSavedPlaces([]);
       return;
     }
 
-    console.log('Fetching places for user:', user.id, 'showOnlyFriends:', showOnlyFriends);
 
     try {
       if (showOnlyFriends || selectedFriendId) {
@@ -457,7 +449,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           f.requester_id === user.id ? f.addressee_id : f.requester_id
         ) || [];
 
-        console.log('Friend IDs:', friendIds);
 
         // Store friends list for the dropdown
         if (friendIds.length > 0) {
@@ -495,8 +486,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           .select('id, odyssey_icon')
           .in('id', targetFriendIds);
 
-        console.log('Loaded friends places:', placesData?.length || 0);
-        console.log('Loaded friend profiles:', profilesData?.length || 0);
 
         // Attach profile to each place based on user_id
         const placesWithProfile = placesData?.map(place => {
@@ -507,7 +496,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           };
         }) || [];
 
-        console.log('First friend place with profile:', placesWithProfile?.[0]);
 
         if (placesWithProfile) {
           setSavedPlaces(placesWithProfile);
@@ -536,8 +524,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           .eq('id', user.id)
           .single();
 
-        console.log('Loaded my places:', placesData?.length || 0);
-        console.log('User profile odyssey_icon:', profileData?.odyssey_icon);
 
         // Attach profile to each place
         const placesWithProfile = placesData?.map(place => ({
@@ -545,7 +531,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
           profile: profileData
         })) || [];
 
-        console.log('First my place with profile:', placesWithProfile?.[0]);
 
         if (placesWithProfile) {
           setSavedPlaces(placesWithProfile);
@@ -561,7 +546,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   };
 
   const updateMarkers = (places: any[], zoom: number) => {
-    console.log('updateMarkers called with', places.length, 'places, categoryFilter:', categoryFilter);
     // Clear all existing markers from both map and clusterer
     allMarkersRef.current.forEach(marker => marker.setMap(null));
     allMarkersRef.current = [];
@@ -582,13 +566,18 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       } else {
         filteredPlaces = places.filter(place => place.category === categoryFilter);
       }
-      console.log('Filtered to', filteredPlaces.length, 'places for category:', categoryFilter);
     }
 
     // Category-matched pins: the glyph and color reflect what the place IS.
     const allMarkers: google.maps.Marker[] = [];
 
     filteredPlaces.forEach(place => {
+      // Skip places with missing/corrupt coordinates — Number(null) is 0 and
+      // Number(undefined) is NaN, both of which silently break markers.
+      if (place.lat == null || place.lng == null || isNaN(Number(place.lat)) || isNaN(Number(place.lng))) {
+        return;
+      }
+
       const iconConfig = {
         url: categoryMarkerUrl(place.category),
         scaledSize: new google.maps.Size(MARKER_SIZE.width, MARKER_SIZE.height),
@@ -612,7 +601,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         if (e && e.stop) {
           e.stop();
         }
-        console.log('Marker clicked:', place.name);
         setSelectedPlace(place);
         setShowPlaceDetails(true);
         // Clear any clicked location to prevent showing the temporary marker
@@ -622,7 +610,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
       allMarkers.push(marker);
     });
 
-    console.log('Created', allMarkers.length, 'markers, setting them on map');
     markersRef.current = allMarkers;
     allMarkersRef.current = allMarkers;
 
@@ -636,7 +623,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
     allMarkers.forEach(marker => {
       marker.setMap(map);
     });
-    console.log('All markers added to map');
   };
 
   const getCurrentUser = async () => {
@@ -651,7 +637,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
         .eq('id', user.id)
         .single();
 
-      console.log('Loaded user odyssey icon:', profile?.odyssey_icon);
       if (profile?.odyssey_icon) {
         setUserOdysseyIcon(profile.odyssey_icon);
       }
@@ -674,7 +659,6 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
   };
 
   const handlePlaceAdded = () => {
-    console.log('Place added! Reloading places...');
     setClickedLocation(null);
     loadAllPlaces(); // This will also call updateMarkers
   };
@@ -841,8 +825,8 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
             <div className="bg-white rounded-lg shadow-lg p-2 max-h-64 overflow-y-auto">
               <button
                 onClick={() => setSelectedFriendId(null)}
-                className={`w-full text-left px-3 py-2 rounded hover:bg-sand transition-colors text-sm ${
-                  !selectedFriendId ? 'bg-sand font-semibold' : ''
+                className={`w-full text-left px-3 py-2 rounded hover:bg-cream transition-colors text-sm ${
+                  !selectedFriendId ? 'bg-cream font-semibold' : ''
                 }`}
               >
                 All Friends
@@ -851,8 +835,8 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
                 <button
                   key={friend.id}
                   onClick={() => setSelectedFriendId(friend.id)}
-                  className={`w-full text-left px-3 py-2 rounded hover:bg-sand transition-colors text-sm ${
-                    selectedFriendId === friend.id ? 'bg-sand font-semibold' : ''
+                  className={`w-full text-left px-3 py-2 rounded hover:bg-cream transition-colors text-sm ${
+                    selectedFriendId === friend.id ? 'bg-cream font-semibold' : ''
                   }`}
                 >
                   {friend.display_name || friend.username}

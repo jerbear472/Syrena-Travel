@@ -94,7 +94,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
   return (
     <div className="h-full flex flex-col bg-cream">
       {/* Header */}
-      <header className="header-clean border-b-2 border-sand">
+      <header className="header-clean border-b-2 border-sea-mist">
         <div className="flex items-center gap-4 mb-6">
           <button
             onClick={onBack}
@@ -166,14 +166,14 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
             />
           </div>
 
-          <div className="flex items-center bg-off-white border-2 border-warm-stone rounded-md overflow-hidden">
+          <div className="flex items-center bg-off-white border-2 border-sea-mist rounded-md overflow-hidden">
             <button
               onClick={() => setViewMode('grid')}
               aria-label="Grid view"
               className={`p-2 transition-all ${
                 viewMode === 'grid'
-                  ? 'bg-earth-brown text-cream'
-                  : 'text-midnight-blue hover:bg-sand'
+                  ? 'bg-primary text-white'
+                  : 'text-midnight-blue hover:bg-cream'
               }`}
             >
               <Grid3x3 size={16} />
@@ -183,8 +183,8 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
               aria-label="List view"
               className={`p-2 transition-all ${
                 viewMode === 'list'
-                  ? 'bg-earth-brown text-cream'
-                  : 'text-midnight-blue hover:bg-sand'
+                  ? 'bg-primary text-white'
+                  : 'text-midnight-blue hover:bg-cream'
               }`}
             >
               <List size={16} />
@@ -194,7 +194,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6 lg:p-8 bg-sand/20">
+      <div className="flex-1 overflow-auto p-6 lg:p-8 bg-cream/60">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -205,7 +205,7 @@ export default function FriendPlacesPage({ friend, onBack, onNavigateToPlace }: 
         ) : filteredPlaces.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full animate-fade-in">
             <div className="text-center max-w-md">
-              <div className="w-20 h-20 bg-sand border-2 border-warm-stone rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-sea-mist border-2 border-stone-blue rounded-full flex items-center justify-center mx-auto mb-6">
                 <MapPin size={32} className="text-ocean-grey" />
               </div>
               <h3 className="heading-3 mb-3">
