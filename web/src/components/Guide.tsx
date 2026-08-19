@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Send, MapPin, Star, Compass, Heart, Menu, ExternalLink,
-  Bookmark, History, X, Utensils, Coffee, Wine, ShoppingBag,
-  Building2, LayoutGrid, Route,
+  Bookmark, X, Route, Sparkles, RotateCcw, Map,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
@@ -30,38 +29,45 @@ interface Place {
   price_level?: number | null;
 }
 
-interface JourneyResult {
-  vibe_intro: string;
-  places: Place[];
+interface ItineraryDraft {
+  title: string;
+  destination: string;
+  num_days: number;
+  prompt: string;
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  places?: Place[];
+  itineraryDraft?: ItineraryDraft | null;
+  chartedTripTitle?: string;
 }
 
 interface GuideProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   onNavigateToPlace: (lat: number, lng: number) => void;
+  onRequestSignIn?: () => void;
+  onNavigateToTrips?: () => void;
 }
 
-const SEARCH_HISTORY_KEY = 'pc_guide_search_history';
+const CHAT_STORAGE_KEY = 'pc_guide_chat_v1';
+const MAX_STORED_MESSAGES = 40;
+// Turns sent to the model per request; the server also enforces its own cap.
+const MAX_CONTEXT_TURNS = 16;
 
-const SUGGESTED_QUERIES = [
+const CONVERSATION_STARTERS = [
   "I'm exploring Brooklyn this weekend",
-  "Hidden gems in Silver Lake, LA",
+  "Thinking about a week in Lisbon — where do I even start?",
   "I'm in Trastevere, Rome — where should I eat?",
+  "Help me plan three days in Mexico City",
   "Coffee spots in Shimokitazawa, Tokyo",
-  "Wandering the Marais in Paris",
-  "Colonia Roma, Mexico City",
+  "What's the best time of year for Kyoto?",
 ];
 
-const CATEGORY_FILTERS = [
-  { id: 'all', label: 'All', icon: LayoutGrid },
-  { id: 'restaurant', label: 'Food', icon: Utensils },
-  { id: 'cafe', label: 'Coffee', icon: Coffee },
-  { id: 'bar', label: 'Drinks', icon: Wine },
-  { id: 'shopping', label: 'Shop', icon: ShoppingBag },
-  { id: 'museum', label: 'Culture', icon: Building2 },
-];
-
-const LOADING_STAGES = [
+const THINKING_LINES = [
   'Reading the vibe of your ask…',
   'Scouting the neighborhood…',
   'Checking every place on Google Maps…',
@@ -69,36 +75,50 @@ const LOADING_STAGES = [
   'Keeping only the keepers…',
 ];
 
+const CHARTING_LINES = [
+  'Reading our whole conversation…',
+  'Clustering days so you never backtrack…',
+  'Checking every place on Google Maps…',
+  'Inking the route…',
+];
+
 // 1234 → "1.2k" for compact review counts on rating pills
 const formatReviews = (n: number): string =>
   n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : `${n}`;
 
-export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlace }: GuideProps) {
-  const [query, setQuery] = useState('');
+let idCounter = 0;
+const nextId = () => `msg-${Date.now()}-${idCounter++}`;
+
+export default function Guide({
+  isSidebarOpen, onToggleSidebar, onNavigateToPlace, onRequestSignIn, onNavigateToTrips,
+}: GuideProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState(0);
-  const [result, setResult] = useState<JourneyResult | null>(null);
+  const [thinkingLine, setThinkingLine] = useState(0);
   const [error, setError] = useState('');
   const [savedPlaces, setSavedPlaces] = useState<Set<string>>(new Set());
   const [savingPlace, setSavingPlace] = useState<string | null>(null);
-  const [savingAll, setSavingAll] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [savingAllFor, setSavingAllFor] = useState<string | null>(null);
+  const [chartingId, setChartingId] = useState<string | null>(null);
+  const [chartingLine, setChartingLine] = useState(0);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [tripPlace, setTripPlace] = useState<AddablePlace | null>(null);
   const [addedToTrip, setAddedToTrip] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const hydratedRef = useRef(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     const timer = setTimeout(() => inputRef.current?.focus(), 400);
     try {
-      const stored = localStorage.getItem(SEARCH_HISTORY_KEY);
-      if (stored) setSearchHistory(JSON.parse(stored));
-    } catch { /* history is a nice-to-have */ }
-    // Location makes "near me" queries work; fail silently if denied
+      const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (stored) setMessages(JSON.parse(stored));
+    } catch { /* a lost thread is a nice-to-have */ }
+    hydratedRef.current = true;
+    // Location makes "near me" conversations work; fail silently if denied
     navigator.geolocation?.getCurrentPosition(
       pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => {},
@@ -108,20 +128,33 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
   }, []);
 
   useEffect(() => {
-    if (!loading) { setLoadingStage(0); return; }
+    if (!hydratedRef.current) return;
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
+    } catch { /* ignore */ }
+  }, [messages]);
+
+  useEffect(() => {
+    if (!loading) { setThinkingLine(0); return; }
     const ticker = setInterval(() => {
-      setLoadingStage(s => Math.min(s + 1, LOADING_STAGES.length - 1));
+      setThinkingLine(s => Math.min(s + 1, THINKING_LINES.length - 1));
     }, 4000);
     return () => clearInterval(ticker);
   }, [loading]);
 
-  const pushHistory = (q: string) => {
-    const next = [q, ...searchHistory.filter(h => h !== q)].slice(0, 6);
-    setSearchHistory(next);
-    try { localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-  };
+  useEffect(() => {
+    if (!chartingId) { setChartingLine(0); return; }
+    const ticker = setInterval(() => {
+      setChartingLine(s => Math.min(s + 1, CHARTING_LINES.length - 1));
+    }, 6000);
+    return () => clearInterval(ticker);
+  }, [chartingId]);
 
-  const fetchMyPlaces = async () => {
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, loading]);
+
+  const fetchMyPlaces = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -134,9 +167,9 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
     } catch {
       return [];
     }
-  };
+  }, [supabase]);
 
-  const fetchFriendsPlaces = async () => {
+  const fetchFriendsPlaces = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -172,16 +205,29 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
       console.error('Error fetching friends places:', err);
       return [];
     }
-  };
+  }, [supabase]);
 
-  const handleSearch = async (searchQuery?: string) => {
-    const q = searchQuery || query;
-    if (!q.trim()) return;
+  // The model sees plain text turns; place recommendations ride along as a
+  // bracketed footnote so it never re-suggests them.
+  const serializeForApi = (msgs: ChatMessage[]) =>
+    msgs.slice(-MAX_CONTEXT_TURNS).map(m => ({
+      role: m.role,
+      content:
+        m.role === 'assistant' && m.places && m.places.length > 0
+          ? `${m.content}\n[You recommended: ${m.places.map(p => p.name).join(', ')}]`
+          : m.content,
+    }));
 
-    setLoading(true);
+  const sendMessage = async (text?: string) => {
+    const q = (text ?? input).trim();
+    if (!q || loading) return;
+
+    const userMsg: ChatMessage = { id: nextId(), role: 'user', content: q };
+    const thread = [...messages, userMsg];
+    setMessages(thread);
+    setInput('');
     setError('');
-    setResult(null);
-    setSelectedFilter('all');
+    setLoading(true);
 
     try {
       const [userPlaces, friendPlaces] = await Promise.all([
@@ -189,11 +235,11 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
         fetchFriendsPlaces(),
       ]);
 
-      const response = await fetch('/api/source-of-journey', {
+      const response = await fetch('/api/guide/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: q,
+          messages: serializeForApi(thread),
           userPlaces,
           friendPlaces,
           ...(userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : {}),
@@ -202,20 +248,70 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error || 'Failed to get recommendations');
+        throw new Error(errData.error || 'The Guide lost its train of thought');
       }
 
       const data = await response.json();
-      setResult(data);
-      pushHistory(q.trim());
-
-      setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+      setMessages(prev => [...prev, {
+        id: nextId(),
+        role: 'assistant',
+        content: data.reply,
+        places: data.places?.length ? data.places : undefined,
+        itineraryDraft: data.itinerary_draft || undefined,
+      }]);
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const handleNewConversation = () => {
+    setMessages([]);
+    setError('');
+    try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch { /* ignore */ }
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleChartTrip = async (msg: ChatMessage) => {
+    const draft = msg.itineraryDraft;
+    if (!draft || chartingId) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      if (onRequestSignIn) onRequestSignIn();
+      else setError('Sign in to chart trips.');
+      return;
+    }
+
+    setChartingId(msg.id);
+    setError('');
+    try {
+      const response = await fetch('/api/itinerary/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          prompt: draft.prompt,
+          destination: draft.destination,
+          numDays: draft.num_days,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Charting failed');
+
+      const tripTitle = data.title || draft.title;
+      setMessages(prev => prev.map(m =>
+        m.id === msg.id ? { ...m, chartedTripTitle: tripTitle } : m
+      ));
+    } catch (err: any) {
+      setError(err.message || 'Charting failed. Please try again.');
+    } finally {
+      setChartingId(null);
     }
   };
 
@@ -223,7 +319,10 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
     try {
       setSavingPlace(place.name);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
+      if (!user) {
+        onRequestSignIn?.();
+        return false;
+      }
 
       const { error: insertError } = await supabase
         .from('places')
@@ -254,24 +353,222 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
     }
   };
 
-  const handleSaveAll = async () => {
-    if (!result) return;
-    setSavingAll(true);
-    for (const place of result.places) {
+  const handleSaveAll = async (msg: ChatMessage) => {
+    if (!msg.places) return;
+    setSavingAllFor(msg.id);
+    for (const place of msg.places) {
       if (!place.isUserPlace && !savedPlaces.has(place.name)) {
         await handleSavePlace(place);
       }
     }
-    setSavingAll(false);
+    setSavingAllFor(null);
   };
 
-  const filteredPlaces = result?.places.filter(
-    p => selectedFilter === 'all' || p.category === selectedFilter
-  ) || [];
+  const unsavedCount = (msg: ChatMessage) =>
+    msg.places?.filter(p => !p.isUserPlace && !savedPlaces.has(p.name)).length ?? 0;
 
-  const unsavedCount = result
-    ? result.places.filter(p => !p.isUserPlace && !savedPlaces.has(p.name)).length
-    : 0;
+  const renderPlaceCard = (place: Place, index: number) => (
+    <div
+      key={`${place.name}-${index}`}
+      className="group card-minimal p-0 overflow-hidden"
+    >
+      {/* Hero photo */}
+      {place.photo_url && (
+        <div className="relative w-full h-44 bg-secondary-subtle">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoSrc(place.photo_url)}
+            alt={place.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          {place.rating != null && (
+            <div className="absolute bottom-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/95 shadow-rustic-md text-xs font-sans font-semibold text-midnight-blue">
+              <Star size={12} className="text-siren-gold fill-siren-gold" />
+              {place.rating.toFixed(1)}
+              {place.user_ratings_total != null && (
+                <span className="font-normal text-ocean-grey">· {formatReviews(place.user_ratings_total)}</span>
+              )}
+            </div>
+          )}
+          {place.price_level != null && place.price_level > 0 && (
+            <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-white/95 shadow-rustic-md text-xs font-sans font-semibold text-ocean-depth">
+              {'$'.repeat(place.price_level)}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="p-5">
+        {/* Top Row */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {(() => {
+              const m = categoryMeta(place.category);
+              const CatIcon = m.Icon;
+              return (
+                <span
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: m.subtle }}
+                  aria-label={place.category}
+                >
+                  <CatIcon size={16} style={{ color: m.color }} />
+                </span>
+              );
+            })()}
+            <div className="min-w-0">
+              <h3 className="font-serif font-semibold text-midnight-blue text-lg leading-tight">
+                {place.name}
+              </h3>
+              <p className="text-sm text-ocean-grey mt-1 font-serif italic leading-relaxed">
+                {place.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => onNavigateToPlace(place.lat, place.lng)}
+              className="btn-icon text-primary hover:text-primary-dark"
+              title="View on map"
+            >
+              <Compass size={18} />
+            </button>
+            <button
+              onClick={() => setTripPlace(place)}
+              className="btn-icon text-ocean-grey hover:text-primary"
+              title="Add to a trip"
+            >
+              <Route size={18} />
+            </button>
+            {place.google_place_id && (
+              <a
+                href={`https://www.google.com/maps/place/?q=place_id:${place.google_place_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-icon text-ocean-grey hover:text-primary"
+                title="Open in Google Maps"
+              >
+                <ExternalLink size={16} />
+              </a>
+            )}
+            {place.isUserPlace || savedPlaces.has(place.name) ? (
+              <div className="btn-icon text-siren-gold">
+                <Heart size={18} className="fill-current" />
+              </div>
+            ) : (
+              <button
+                onClick={() => handleSavePlace(place)}
+                disabled={savingPlace === place.name}
+                className="btn-icon text-ocean-grey hover:text-siren-gold"
+                title="Save to My Places"
+              >
+                {savingPlace === place.name ? (
+                  <div className="spinner-minimal" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                ) : (
+                  <Heart size={18} />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Address */}
+        <div className="flex items-center gap-2 text-xs text-driftwood mb-3">
+          <MapPin size={12} className="flex-shrink-0" />
+          <span className="truncate font-sans">{place.address}</span>
+        </div>
+
+        {/* Why Card */}
+        <div className="p-3 rounded-lg bg-cream/80 border border-sea-mist/60">
+          <p className="text-xs font-sans text-ocean-depth leading-relaxed">
+            <span className="font-semibold text-primary">Why the Guide picked this:</span> {place.why}
+          </p>
+        </div>
+
+        {/* Badges */}
+        {place.isUserPlace && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className="px-3 py-1 rounded-full bg-accent-subtle border border-accent/40 text-xs font-sans text-accent-dark">
+              <Heart size={10} className="inline mr-1 fill-current" />
+              Already in your places
+            </div>
+          </div>
+        )}
+        {place.isFriendPlace && place.friend_name && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className="px-3 py-1 rounded-full bg-primary-subtle border border-primary/30 text-xs font-sans text-primary-dark">
+              <Star size={10} className="inline mr-1 text-siren-gold" />
+              Also saved by {place.friend_name}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderItineraryDraft = (msg: ChatMessage) => {
+    const draft = msg.itineraryDraft!;
+    const isCharting = chartingId === msg.id;
+    return (
+      <div className="mt-4 p-5 rounded-xl bg-gradient-to-br from-primary-subtle/60 to-accent-subtle/50 border-2 border-primary/30">
+        <div className="flex items-center gap-2 mb-2">
+          <Map size={16} className="text-primary" />
+          <span className="text-xs font-sans font-semibold uppercase tracking-wide text-primary">
+            {msg.chartedTripTitle ? 'Trip charted' : 'Ready to chart'}
+          </span>
+        </div>
+        <h3 className="font-serif font-semibold text-midnight-blue text-lg leading-tight">
+          {draft.title}
+        </h3>
+        <p className="text-sm text-ocean-grey font-sans mt-1">
+          {draft.destination} · {draft.num_days} day{draft.num_days !== 1 ? 's' : ''}
+        </p>
+        {msg.chartedTripTitle ? (
+          <div className="mt-4 flex items-center gap-3 flex-wrap">
+            <p className="text-sm font-serif italic text-ocean-depth">
+              "{msg.chartedTripTitle}" is inked and waiting in your Trips.
+            </p>
+            {onNavigateToTrips && (
+              <button
+                onClick={onNavigateToTrips}
+                className="btn-secondary inline-flex items-center gap-2 text-sm"
+              >
+                <Route size={15} />
+                View in Trips
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4">
+            <button
+              onClick={() => handleChartTrip(msg)}
+              disabled={isCharting || !!chartingId}
+              className="btn-primary inline-flex items-center gap-2 disabled:opacity-60"
+            >
+              {isCharting ? (
+                <>
+                  <div className="spinner-minimal" style={{ width: 15, height: 15, borderWidth: 2 }} />
+                  <span>{CHARTING_LINES[chartingLine]}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={15} />
+                  <span>Chart this trip</span>
+                </>
+              )}
+            </button>
+            {isCharting && (
+              <p className="text-xs text-driftwood mt-2 font-sans">
+                This takes a little while — every stop gets verified on Google Maps.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -291,70 +588,39 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
             <div className="h-4 w-px bg-sea-mist hidden sm:block" />
             <span className="text-xs text-ocean-grey italic hidden sm:inline">Every pick verified on Google Maps</span>
           </div>
+          {messages.length > 0 && (
+            <button
+              onClick={handleNewConversation}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-sea-mist bg-off-white text-xs font-sans text-ocean-depth hover:border-primary hover:text-primary transition-colors"
+              title="Start a new conversation"
+            >
+              <RotateCcw size={12} />
+              <span className="hidden sm:inline">New conversation</span>
+            </button>
+          )}
         </div>
         <div className="px-6 py-5">
           <div>
             <h1 className="heading-2 flex items-center gap-2">
               The Guide
             </h1>
-            <p className="text-caption mt-0.5">Tell me where you are. I'll show you where to go.</p>
+            <p className="text-caption mt-0.5">Talk to me about anywhere. We'll turn it into a trip.</p>
           </div>
         </div>
       </header>
 
-      {/* Content */}
+      {/* Thread */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 py-8">
-          {/* Search Input */}
-          <div className="relative mb-6 animate-tab-enter">
-            <div className="relative">
-              <Compass className="absolute left-4 top-1/2 -translate-y-1/2 text-ocean-grey" size={20} />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="I'm in Williamsburg, Brooklyn…"
-                className="input-clean pl-12 pr-14 py-4 text-lg"
-                disabled={loading}
-              />
-              <button
-                onClick={() => handleSearch()}
-                disabled={loading || !query.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 btn-icon bg-primary text-white hover:bg-primary-dark border-primary-dark disabled:opacity-30"
-              >
-                <Send size={18} />
-              </button>
-            </div>
-          </div>
-
-          {/* Recent searches + suggestions — show when no results */}
-          {!result && !loading && (
-            <div className="animate-tab-enter" style={{ animationDelay: '0.1s' }}>
-              {searchHistory.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-label mb-3 text-ocean-grey">Recent</p>
-                  <div className="flex flex-wrap gap-2">
-                    {searchHistory.map((h) => (
-                      <button
-                        key={h}
-                        onClick={() => { setQuery(h); handleSearch(h); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-sea-mist bg-off-white text-xs font-sans text-ocean-depth hover:border-primary hover:text-primary transition-colors"
-                      >
-                        <History size={12} />
-                        <span className="max-w-[220px] truncate">{h}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p className="text-label mb-4 text-ocean-grey">Try something like</p>
+          {/* Empty state — conversation starters */}
+          {messages.length === 0 && !loading && (
+            <div className="animate-tab-enter">
+              <p className="text-label mb-4 text-ocean-grey">Start anywhere</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger-children">
-                {SUGGESTED_QUERIES.map((suggestion) => (
+                {CONVERSATION_STARTERS.map((suggestion) => (
                   <button
                     key={suggestion}
-                    onClick={() => { setQuery(suggestion); handleSearch(suggestion); }}
+                    onClick={() => sendMessage(suggestion)}
                     className="text-left p-4 rounded-lg border-2 border-sea-mist bg-off-white hover:border-primary/50 hover:bg-primary-subtle/40 group"
                     style={{
                       transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -370,253 +636,125 @@ export default function Guide({ isSidebarOpen, onToggleSidebar, onNavigateToPlac
             </div>
           )}
 
-          {/* Loading State */}
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-              <div className="relative mb-6">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-rustic-lg overflow-hidden">
-                  <Image
-                    src="/pocket-compass-star.png"
-                    alt="Searching"
-                    width={64}
-                    height={64}
-                    className="object-cover w-full h-full animate-gentle-pulse"
-                  />
+          {/* Messages */}
+          <div className="space-y-6">
+            {messages.map((msg) =>
+              msg.role === 'user' ? (
+                <div key={msg.id} className="flex justify-end animate-slide-up">
+                  <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-br-md bg-primary text-white shadow-rustic-md">
+                    <p className="text-sm font-sans leading-relaxed">{msg.content}</p>
+                  </div>
                 </div>
-                <div className="absolute -inset-1 rounded-full border-2 border-accent/40 animate-[spin_3s_linear_infinite]" style={{ borderTopColor: 'transparent' }} />
-              </div>
-              <p className="text-ocean-grey font-serif italic text-center">
-                {LOADING_STAGES[loadingStage]}
-              </p>
-              <p className="text-xs text-driftwood mt-2 font-sans">
-                Finding places with soul in this area
-              </p>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="alert alert-error animate-slide-up mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Results */}
-          {result && (
-            <div ref={resultsRef} className="animate-tab-enter">
-              {/* Vibe Intro */}
-              {result.vibe_intro && (
-                <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-off-white to-accent-subtle/60 border-2 border-sea-mist">
-                  <p className="font-serif text-lg text-ocean-depth leading-relaxed italic">
-                    "{result.vibe_intro}"
-                  </p>
-                </div>
-              )}
-
-              {/* Category filter + Save all */}
-              <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                  {CATEGORY_FILTERS.map((f) => {
-                    const Icon = f.icon;
-                    const active = selectedFilter === f.id;
-                    return (
-                      <button
-                        key={f.id}
-                        onClick={() => setSelectedFilter(f.id)}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 text-xs font-sans font-medium transition-colors ${
-                          active
-                            ? 'bg-primary text-white border-primary-dark'
-                            : 'bg-off-white text-ocean-depth border-sea-mist hover:border-primary/50'
-                        }`}
-                      >
-                        <Icon size={13} />
-                        {f.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {unsavedCount > 0 && (
-                  <button
-                    onClick={handleSaveAll}
-                    disabled={savingAll}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-accent-subtle border-2 border-accent/50 text-xs font-sans font-semibold text-accent-dark hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
-                  >
-                    {savingAll ? (
-                      <div className="spinner-minimal" style={{ width: 13, height: 13, borderWidth: 2 }} />
-                    ) : (
-                      <Bookmark size={13} />
-                    )}
-                    Save all {unsavedCount}
-                  </button>
-                )}
-              </div>
-
-              {/* Places */}
-              <div className="space-y-5 stagger-children">
-                {filteredPlaces.map((place, index) => (
-                  <div
-                    key={`${place.name}-${index}`}
-                    className="group card-minimal p-0 overflow-hidden"
-                  >
-                    {/* Hero photo */}
-                    {place.photo_url && (
-                      <div className="relative w-full h-52 bg-secondary-subtle">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={photoSrc(place.photo_url)}
-                          alt={place.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        {place.rating != null && (
-                          <div className="absolute bottom-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/95 shadow-rustic-md text-xs font-sans font-semibold text-midnight-blue">
-                            <Star size={12} className="text-siren-gold fill-siren-gold" />
-                            {place.rating.toFixed(1)}
-                            {place.user_ratings_total != null && (
-                              <span className="font-normal text-ocean-grey">· {formatReviews(place.user_ratings_total)}</span>
-                            )}
-                          </div>
-                        )}
-                        {place.price_level != null && place.price_level > 0 && (
-                          <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-white/95 shadow-rustic-md text-xs font-sans font-semibold text-ocean-depth">
-                            {'$'.repeat(place.price_level)}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="p-5">
-                      {/* Top Row */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          {(() => {
-                            const m = categoryMeta(place.category);
-                            const CatIcon = m.Icon;
-                            return (
-                              <span
-                                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                                style={{ background: m.subtle }}
-                                aria-label={place.category}
-                              >
-                                <CatIcon size={16} style={{ color: m.color }} />
-                              </span>
-                            );
-                          })()}
-                          <div className="min-w-0">
-                            <h3 className="font-serif font-semibold text-midnight-blue text-lg leading-tight">
-                              {place.name}
-                            </h3>
-                            <p className="text-sm text-ocean-grey mt-1 font-serif italic leading-relaxed">
-                              {place.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            onClick={() => onNavigateToPlace(place.lat, place.lng)}
-                            className="btn-icon text-primary hover:text-primary-dark"
-                            title="View on map"
-                          >
-                            <Compass size={18} />
-                          </button>
-                          <button
-                            onClick={() => setTripPlace(place)}
-                            className="btn-icon text-ocean-grey hover:text-primary"
-                            title="Add to a trip"
-                          >
-                            <Route size={18} />
-                          </button>
-                          {place.google_place_id && (
-                            <a
-                              href={`https://www.google.com/maps/place/?q=place_id:${place.google_place_id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-icon text-ocean-grey hover:text-primary"
-                              title="Open in Google Maps"
-                            >
-                              <ExternalLink size={16} />
-                            </a>
-                          )}
-                          {place.isUserPlace || savedPlaces.has(place.name) ? (
-                            <div className="btn-icon text-siren-gold">
-                              <Heart size={18} className="fill-current" />
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => handleSavePlace(place)}
-                              disabled={savingPlace === place.name}
-                              className="btn-icon text-ocean-grey hover:text-siren-gold"
-                              title="Save to My Places"
-                            >
-                              {savingPlace === place.name ? (
-                                <div className="spinner-minimal" style={{ width: 16, height: 16, borderWidth: 2 }} />
-                              ) : (
-                                <Heart size={18} />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Address */}
-                      <div className="flex items-center gap-2 text-xs text-driftwood mb-3">
-                        <MapPin size={12} className="flex-shrink-0" />
-                        <span className="truncate font-sans">{place.address}</span>
-                      </div>
-
-                      {/* Why Card */}
-                      <div className="p-3 rounded-lg bg-cream/80 border border-sea-mist/60">
-                        <p className="text-xs font-sans text-ocean-depth leading-relaxed">
-                          <span className="font-semibold text-primary">Why the Guide picked this:</span> {place.why}
+              ) : (
+                <div key={msg.id} className="animate-slide-up">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 shadow-rustic-sm">
+                      <Image
+                        src="/pocket-compass-star.png"
+                        alt="The Guide"
+                        width={32}
+                        height={32}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="p-5 rounded-2xl rounded-tl-md bg-gradient-to-br from-off-white to-accent-subtle/60 border-2 border-sea-mist">
+                        <p className="font-serif text-[15px] text-ocean-depth leading-relaxed whitespace-pre-line">
+                          {msg.content}
                         </p>
                       </div>
 
-                      {/* Badges */}
-                      {place.isUserPlace && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="px-3 py-1 rounded-full bg-accent-subtle border border-accent/40 text-xs font-sans text-accent-dark">
-                            <Heart size={10} className="inline mr-1 fill-current" />
-                            Already in your places
+                      {/* Inline place cards */}
+                      {msg.places && msg.places.length > 0 && (
+                        <div className="mt-4">
+                          {unsavedCount(msg) > 0 && (
+                            <div className="flex justify-end mb-3">
+                              <button
+                                onClick={() => handleSaveAll(msg)}
+                                disabled={savingAllFor === msg.id}
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-accent-subtle border-2 border-accent/50 text-xs font-sans font-semibold text-accent-dark hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
+                              >
+                                {savingAllFor === msg.id ? (
+                                  <div className="spinner-minimal" style={{ width: 13, height: 13, borderWidth: 2 }} />
+                                ) : (
+                                  <Bookmark size={13} />
+                                )}
+                                Save all {unsavedCount(msg)}
+                              </button>
+                            </div>
+                          )}
+                          <div className="space-y-4 stagger-children">
+                            {msg.places.map((place, i) => renderPlaceCard(place, i))}
                           </div>
                         </div>
                       )}
-                      {place.isFriendPlace && place.friend_name && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="px-3 py-1 rounded-full bg-primary-subtle border border-primary/30 text-xs font-sans text-primary-dark">
-                            <Star size={10} className="inline mr-1 text-siren-gold" />
-                            Also saved by {place.friend_name}
-                          </div>
-                        </div>
-                      )}
+
+                      {/* Itinerary draft card */}
+                      {msg.itineraryDraft && renderItineraryDraft(msg)}
                     </div>
                   </div>
-                ))}
-                {filteredPlaces.length === 0 && (
-                  <p className="text-center text-caption py-10">
-                    Nothing in this category — try another filter.
-                  </p>
-                )}
-              </div>
+                </div>
+              )
+            )}
 
-              {/* Search Again */}
-              <div className="mt-8 text-center">
-                <button
-                  onClick={() => {
-                    setResult(null);
-                    setQuery('');
-                    setError('');
-                    setTimeout(() => inputRef.current?.focus(), 100);
-                  }}
-                  className="btn-secondary inline-flex items-center gap-2"
-                >
-                  <Compass size={16} />
-                  <span>Explore another area</span>
-                </button>
+            {/* Thinking indicator */}
+            {loading && (
+              <div className="flex items-start gap-3 animate-fade-in">
+                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 shadow-rustic-sm">
+                  <Image
+                    src="/pocket-compass-star.png"
+                    alt="Thinking"
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full animate-gentle-pulse"
+                  />
+                </div>
+                <div className="px-5 py-4 rounded-2xl rounded-tl-md bg-off-white border-2 border-sea-mist">
+                  <p className="text-sm text-ocean-grey font-serif italic">
+                    {THINKING_LINES[thinkingLine]}
+                  </p>
+                </div>
               </div>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="alert alert-error animate-slide-up mt-6 flex items-center justify-between gap-3">
+              <span>{error}</span>
+              <button onClick={() => setError('')} className="btn-icon flex-shrink-0">
+                <X size={14} />
+              </button>
             </div>
           )}
+
+          <div ref={bottomRef} />
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="border-t-2 border-sea-mist bg-gradient-to-r from-off-white via-cream to-off-white">
+        <div className="max-w-3xl mx-auto px-6 py-4">
+          <div className="relative">
+            <Compass className="absolute left-4 top-1/2 -translate-y-1/2 text-ocean-grey" size={20} />
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder={messages.length === 0 ? "I'm in Williamsburg, Brooklyn…" : 'Keep the conversation going…'}
+              className="input-clean pl-12 pr-14 py-4 text-base"
+              disabled={loading}
+            />
+            <button
+              onClick={() => sendMessage()}
+              disabled={loading || !input.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 btn-icon bg-primary text-white hover:bg-primary-dark border-primary-dark disabled:opacity-30"
+            >
+              <Send size={18} />
+            </button>
+          </div>
         </div>
       </div>
 

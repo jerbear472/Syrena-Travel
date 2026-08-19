@@ -720,7 +720,7 @@ export default function HomePage() {
           </>
         )}
 
-        {activeTab === 'guide' && <Guide isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
+        {activeTab === 'guide' && <Guide isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} onRequestSignIn={() => setShowAuthModal(true)} onNavigateToTrips={() => switchTab('trips')} />}
         {activeTab === 'trips' && <PlanTrip isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} isAuthenticated={isAuthenticated} onRequestSignIn={() => setShowAuthModal(true)} />}
         {activeTab === 'my-places' && <MyPlaces key={Date.now()} onNavigateToPlace={handleNavigateToPlace} isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onEditProfile={() => switchTab('profile')} />}
         {activeTab === 'friends' && <Friends isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(true)} onNavigateToPlace={handleNavigateToPlace} />}
