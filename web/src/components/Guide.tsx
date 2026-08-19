@@ -67,12 +67,20 @@ const CONVERSATION_STARTERS = [
   "What's the best time of year for Kyoto?",
 ];
 
-const THINKING_LINES = [
-  'Reading the vibe of your ask…',
-  'Scouting the neighborhood…',
-  'Checking every place on Google Maps…',
+// Early lines are picked at random per send so the wait never reads the
+// same twice; the tail is always the verification steps actually happening.
+const MUSING_LINES = [
+  'Walking the neighborhood in my head…',
+  'Arguing with myself over the shortlist…',
+  'Remembering who does the best late-afternoon light…',
+  'Calling in a favor from every corner table I know…',
+  'Thumbing through the field journal…',
+  'Consulting the compass…',
+];
+const VERIFY_LINES = [
+  'Checking every pick against Google Maps…',
   'Pulling photos and ratings…',
-  'Keeping only the keepers…',
+  'Keeping only the ones worth your time…',
 ];
 
 const CHARTING_LINES = [
@@ -96,6 +104,7 @@ export default function Guide({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [thinkingLine, setThinkingLine] = useState(0);
+  const [thinkingSet, setThinkingSet] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [savedPlaces, setSavedPlaces] = useState<Set<string>>(new Set());
   const [savingPlace, setSavingPlace] = useState<string | null>(null);
@@ -139,8 +148,12 @@ export default function Guide({
 
   useEffect(() => {
     if (!loading) { setThinkingLine(0); return; }
+    // Two random musings, then the real verification steps
+    const shuffled = [...MUSING_LINES].sort(() => Math.random() - 0.5).slice(0, 2);
+    const lines = [...shuffled, ...VERIFY_LINES];
+    setThinkingSet(lines);
     const ticker = setInterval(() => {
-      setThinkingLine(s => Math.min(s + 1, THINKING_LINES.length - 1));
+      setThinkingLine(s => Math.min(s + 1, lines.length - 1));
     }, 4000);
     return () => clearInterval(ticker);
   }, [loading]);
@@ -716,7 +729,7 @@ export default function Guide({
                 </div>
                 <div className="px-5 py-4 rounded-2xl rounded-tl-md bg-off-white border-2 border-sea-mist">
                   <p className="text-sm text-ocean-grey font-serif italic">
-                    {THINKING_LINES[thinkingLine]}
+                    {thinkingSet[thinkingLine] || MUSING_LINES[0]}
                   </p>
                 </div>
               </div>
