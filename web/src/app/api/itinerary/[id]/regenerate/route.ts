@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { authFromRequest } from '@/lib/auth-server';
 import { verifyAndEnrichPlace } from '@/lib/place-cache';
 import { orderByProximity } from '@/lib/itinerary-geo';
+import { sortBySlot } from '@/lib/itinerary-time';
 
 // Partial regeneration keeps the LLM call small (only the requested days),
 // but verification still fans out to Google; 60s matches the generate route.
@@ -38,6 +39,7 @@ interface LlmPlace {
   name: string;
   neighborhood?: string | null;
   category: string;
+  time_of_day: 'morning' | 'afternoon' | 'evening';
   address: string;
   lat: number;
   lng: number;
@@ -64,6 +66,7 @@ PLACE QUALITY:
 - Real, Google-Maps-searchable official names with real addresses and lat/lng. Every suggestion is verified against Google Places; hallucinated ones get dropped, so only include places you're 95% sure exist.
 - Categories: restaurant, cafe, bar, hotel, viewpoint, nature, shopping, museum, hidden-gem
 - One vivid description line and one opinionated "why" per place.
+- Each place gets a time_of_day (morning, afternoon, evening) that makes the day flow like a real day — coffee mornings, museum afternoons, dinner-and-drinks evenings. Fill the slots the locked places leave open.
 
 OUTPUT FORMAT — JSON ONLY:
 {
@@ -71,7 +74,7 @@ OUTPUT FORMAT — JSON ONLY:
     {
       "day_number": 2,
       "narrative": "Fresh 2-3 sentence day narrative.",
-      "places": [ { "name": "...", "neighborhood": "...", "category": "cafe", "address": "...", "lat": 0, "lng": 0, "why": "...", "description": "..." } ]
+      "places": [ { "name": "...", "neighborhood": "...", "category": "cafe", "address": "...", "lat": 0, "lng": 0, "why": "...", "description": "...", "time_of_day": "morning" } ]
     }
   ]
 }`;
@@ -105,8 +108,9 @@ const REGENERATE_SCHEMA = {
                 lng: { type: 'number' },
                 why: { type: 'string' },
                 description: { type: 'string' },
+                time_of_day: { type: 'string', enum: ['morning', 'afternoon', 'evening'] },
               },
-              required: ['name', 'neighborhood', 'category', 'address', 'lat', 'lng', 'why', 'description'],
+              required: ['name', 'neighborhood', 'category', 'address', 'lat', 'lng', 'why', 'description', 'time_of_day'],
               additionalProperties: false,
             },
           },
@@ -298,7 +302,7 @@ export async function POST(
 
       // Locked anchors lead the array so proximity ordering walks out from
       // the user's decided stops.
-      const merged = orderByProximity([...lockedPlaces, ...newPlaces]);
+      const merged = sortBySlot(orderByProximity([...lockedPlaces, ...newPlaces]));
       if (merged.length === 0) continue; // nothing verified — keep the old day
 
       updatedDays.push({

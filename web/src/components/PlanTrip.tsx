@@ -5,8 +5,10 @@ import {
   Menu, Compass, Minus, Plus, ArrowLeft, Share2, Bookmark, Star,
   MapPin, Check, Trash2, ExternalLink, Utensils, Coffee, Wine,
   Building2, Trees, ShoppingBag, Landmark, Moon, Lock, LockOpen,
-  ChevronUp, ChevronDown, Sparkles, X, Search,
+  ChevronUp, ChevronDown, Sparkles, X, Search, Sunrise, Sun,
+  CalendarPlus, Download,
 } from 'lucide-react';
+import { TIME_SLOTS, TimeOfDay, slotOf, buildIcs } from '@/lib/itinerary-time';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 import { dayColor } from '@/lib/itinerary-colors';
@@ -26,6 +28,7 @@ interface ItineraryPlace {
   rating?: number;
   price_level?: number;
   neighborhood?: string;
+  time_of_day?: TimeOfDay;
   // Decided by the user — survives redraws. AI picks start unlocked.
   locked?: boolean;
 }
@@ -299,6 +302,8 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
   // -------------------- Trip editing --------------------
 
   const [redrawingDay, setRedrawingDay] = useState<number | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportStart, setExportStart] = useState('');
   const [pickerDay, setPickerDay] = useState<number | null>(null);
   const [library, setLibrary] = useState<LibraryPlace[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -356,15 +361,6 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
     });
   };
 
-  const nudgePlace = (dayNumber: number, idx: number, delta: -1 | 1) => {
-    mutateDay(dayNumber, places => {
-      const j = idx + delta;
-      if (j < 0 || j >= places.length) return places;
-      [places[idx], places[j]] = [places[j], places[idx]];
-      return places;
-    });
-  };
-
   const movePlaceToDay = (fromDay: number, idx: number, toDay: number) => {
     if (!itinerary || fromDay === toDay) return;
     let moved: ItineraryPlace | null = null;
@@ -382,6 +378,45 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
       return d;
     });
     commitDays(nextDays, [fromDay, toDay]);
+  };
+
+  const setPlaceSlot = (dayNumber: number, idx: number, slot: TimeOfDay) => {
+    mutateDay(dayNumber, places => {
+      places[idx] = { ...places[idx], time_of_day: slot };
+      return places;
+    });
+  };
+
+  // Swap two (not necessarily adjacent) positions — used for reordering
+  // within a time-of-day slot, where slot neighbors can be non-contiguous.
+  const swapPlaces = (dayNumber: number, i: number, j: number) => {
+    mutateDay(dayNumber, places => {
+      [places[i], places[j]] = [places[j], places[i]];
+      return places;
+    });
+  };
+
+  const SLOT_ICONS: Record<TimeOfDay, typeof Sun> = {
+    morning: Sunrise,
+    afternoon: Sun,
+    evening: Moon,
+  };
+
+  const handleExportIcs = () => {
+    if (!itinerary || !exportStart) return;
+    const [y, m, d] = exportStart.split('-').map(Number);
+    const start = new Date(y, m - 1, d);
+    const ics = buildIcs(itinerary, start);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${itinerary.title.replace(/[^\w\s-]/g, '').trim() || 'trip'}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
   };
 
   // Redraw a day: locked places stay, Pocket Compass refills the rest.
@@ -503,6 +538,19 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => {
+                if (!exportStart) {
+                  const t = new Date();
+                  setExportStart(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`);
+                }
+                setExportOpen(true);
+              }}
+              className="btn-icon text-ocean-grey hover:text-primary"
+              title="Export to calendar"
+            >
+              <CalendarPlus size={18} />
+            </button>
             {shareUrl && (
               <>
                 <button
@@ -595,8 +643,25 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                       {d.narrative}
                     </p>
                   )}
-                  <div className={`grid sm:grid-cols-2 gap-4 ${redrawingDay === d.day_number ? 'opacity-40 pointer-events-none' : ''}`} style={{ transition: 'opacity 0.3s ease' }}>
-                    {(d.places || []).map((p, i) => (
+                  {(() => {
+                    const dayPlaces = d.places || [];
+                    const n = dayPlaces.length;
+                    const indexed = dayPlaces.map((p, i) => ({ p, i }));
+                    return (
+                      <div className={`space-y-6 ${redrawingDay === d.day_number ? 'opacity-40 pointer-events-none' : ''}`} style={{ transition: 'opacity 0.3s ease' }}>
+                        {TIME_SLOTS.map(slot => {
+                          const group = indexed.filter(x => slotOf(x.p, x.i, n) === slot.id);
+                          if (group.length === 0) return null;
+                          const SlotIcon = SLOT_ICONS[slot.id];
+                          return (
+                            <div key={slot.id}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <SlotIcon size={14} className="text-accent-dark" />
+                                <span className="text-[11px] font-sans font-semibold uppercase tracking-wider text-ocean-grey">{slot.label}</span>
+                                <div className="flex-1 h-px bg-sea-mist" />
+                              </div>
+                              <div className="grid sm:grid-cols-2 gap-4">
+                                {group.map(({ p, i }, g) => (
                       <article
                         key={`${d.day_number}-${i}-${p.google_place_id || p.name}`}
                         className={`rounded-xl overflow-hidden bg-off-white border-2 shadow-rustic-sm hover:shadow-rustic-lg transition-shadow ${p.locked ? 'border-accent/60' : 'border-sea-mist'}`}
@@ -668,21 +733,31 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                               {p.locked ? <Lock size={14} /> : <LockOpen size={14} />}
                             </button>
                             <button
-                              onClick={() => nudgePlace(d.day_number, i, -1)}
-                              disabled={i === 0}
+                              onClick={() => g > 0 && swapPlaces(d.day_number, i, group[g - 1].i)}
+                              disabled={g === 0}
                               className="p-1.5 rounded-md text-driftwood hover:text-primary hover:bg-primary-subtle disabled:opacity-30 transition-colors"
-                              title="Move earlier"
+                              title="Move earlier in this part of the day"
                             >
                               <ChevronUp size={14} />
                             </button>
                             <button
-                              onClick={() => nudgePlace(d.day_number, i, 1)}
-                              disabled={i === (d.places?.length || 0) - 1}
+                              onClick={() => g < group.length - 1 && swapPlaces(d.day_number, i, group[g + 1].i)}
+                              disabled={g === group.length - 1}
                               className="p-1.5 rounded-md text-driftwood hover:text-primary hover:bg-primary-subtle disabled:opacity-30 transition-colors"
-                              title="Move later"
+                              title="Move later in this part of the day"
                             >
                               <ChevronDown size={14} />
                             </button>
+                            <select
+                              value={slotOf(p, i, n)}
+                              onChange={e => setPlaceSlot(d.day_number, i, e.target.value as TimeOfDay)}
+                              className="text-xs font-sans text-ocean-grey bg-transparent border border-sea-mist rounded-md px-1.5 py-1 hover:border-primary cursor-pointer"
+                              title="Time of day"
+                            >
+                              {TIME_SLOTS.map(ts => (
+                                <option key={ts.id} value={ts.id}>{ts.label}</option>
+                              ))}
+                            </select>
                             {itinerary.days.length > 1 && (
                               <select
                                 value={d.day_number}
@@ -707,13 +782,54 @@ export default function PlanTrip({ isSidebarOpen, onToggleSidebar, isAuthenticat
                           </div>
                         </div>
                       </article>
-                    ))}
-                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </section>
               ))}
             </div>
           </div>
         </div>
+
+        {/* Export to calendar */}
+        {exportOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 modal-backdrop-clean" onClick={() => setExportOpen(false)} />
+            <div className="relative modal-clean w-full max-w-sm p-6">
+              <button onClick={() => setExportOpen(false)} className="absolute top-3 right-3 btn-icon" aria-label="Close">
+                <X size={16} />
+              </button>
+              <div className="flex items-center gap-2 mb-1">
+                <CalendarPlus size={18} className="text-primary" />
+                <h3 className="font-serif font-semibold text-lg text-midnight-blue">Export to calendar</h3>
+              </div>
+              <p className="text-xs text-ocean-grey font-sans mb-4">
+                Downloads an .ics file that opens in Apple, Google, or Outlook calendars.
+                Mornings start at 9am, afternoons at 1pm, evenings at 7pm — each stop gets a 90-minute block.
+              </p>
+              <label className="text-label block mb-2">First day of the trip</label>
+              <input
+                type="date"
+                value={exportStart}
+                onChange={e => setExportStart(e.target.value)}
+                className="input-clean mb-4"
+              />
+              <button
+                onClick={handleExportIcs}
+                disabled={!exportStart}
+                className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Download size={15} />
+                Download .ics
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Add-from-library picker */}
         {pickerDay !== null && (

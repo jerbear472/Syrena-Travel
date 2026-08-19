@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { authFromRequest } from '@/lib/auth-server';
 import { verifyAndEnrichPlace, EnrichedPlace } from '@/lib/place-cache';
 import { orderByProximity } from '@/lib/itinerary-geo';
+import { sortBySlot } from '@/lib/itinerary-time';
 
 // Vercel function execution limit. Sonnet generation + 40 Google verifies
 // can run 30–50s for a 10-day trip; 60s gives headroom.
@@ -16,6 +17,7 @@ interface LlmPlace {
   name: string;
   neighborhood?: string | null;
   category: string;
+  time_of_day: 'morning' | 'afternoon' | 'evening';
   address: string;
   lat: number;
   lng: number;
@@ -61,7 +63,8 @@ PER-DAY NARRATIVE:
   - "Day 5 is the transit day, and we're not pretending otherwise. Quick breakfast, train to Porto by noon, settle in slowly."
 
 PLACE QUALITY:
-- Each place: real name (full, official, Google-Maps-searchable), real address, lat/lng, neighborhood, category, one-line vivid description, and a "why" with a take.
+- Each place: real name (full, official, Google-Maps-searchable), real address, lat/lng, neighborhood, category, one-line vivid description, a "why" with a take, and a time_of_day.
+- time_of_day is one of: morning, afternoon, evening. Shape each day like a day actually flows — coffee and markets in the morning, museums and wandering in the afternoon, dinner and bars in the evening. Every day should have at least a morning and an evening stop; never put a cocktail bar in the morning or a farmers market at night.
 - Categories: restaurant, cafe, bar, hotel, viewpoint, nature, shopping, museum, hidden-gem
 - Avoid touristy default picks. The natural-wine bar with eight tables beats the famous brasserie with 200.
 - For multi-city trips, mark each place's neighborhood with the city name ("Alfama, Lisbon" not just "Alfama").
@@ -89,6 +92,7 @@ OUTPUT FORMAT — JSON ONLY, no markdown fences:
           "address": "Full street address",
           "lat": 43.5945,
           "lng": 3.8767,
+          "time_of_day": "morning",
           "why": "Your honest, opinionated take in one sentence.",
           "description": "One vivid line capturing what it FEELS like."
         }
@@ -131,8 +135,9 @@ const ITINERARY_SCHEMA = {
                 lng: { type: 'number' },
                 why: { type: 'string' },
                 description: { type: 'string' },
+                time_of_day: { type: 'string', enum: ['morning', 'afternoon', 'evening'] },
               },
-              required: ['name', 'neighborhood', 'category', 'address', 'lat', 'lng', 'why', 'description'],
+              required: ['name', 'neighborhood', 'category', 'address', 'lat', 'lng', 'why', 'description', 'time_of_day'],
               additionalProperties: false,
             },
           },
@@ -289,7 +294,10 @@ export async function POST(request: NextRequest) {
     // (Google-verified) coordinates, so the on-map route doesn't zig-zag
     // across town and back.
     enrichedDays.forEach(d => {
-      d.places = orderByProximity(d.places);
+      // Proximity gives the walkable path; the stable slot sort then restores
+      // chronology (morning -> evening) without scrambling the path within a
+      // slot.
+      d.places = sortBySlot(orderByProximity(d.places));
     });
 
     // Drop any day with zero places after verification
