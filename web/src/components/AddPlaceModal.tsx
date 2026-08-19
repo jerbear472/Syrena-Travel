@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, MapPin, Coffee, Utensils, Camera, Mountain, ShoppingBag, Hotel, Wine, Building2, Gem, Users, MoreHorizontal, Loader2, DollarSign } from 'lucide-react';
+import { X, MapPin, Coffee, Utensils, Camera, Mountain, ShoppingBag, Hotel, Wine, Building2, Gem, Users, MoreHorizontal, Loader2, DollarSign, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Image from 'next/image';
 
@@ -42,6 +42,7 @@ export default function AddPlaceModal({
   const [comment, setComment] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [priceLevel, setPriceLevel] = useState(0);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [userOdysseyIcon, setUserOdysseyIcon] = useState<string | null>(null);
@@ -76,6 +77,9 @@ export default function AddPlaceModal({
       if (placeDetails.name) {
         setTitle(placeDetails.name);
       }
+
+      // First photo is the default pick; the grid below lets the user change it
+      setSelectedPhoto(placeDetails.photos?.[0] || null);
 
       // Set price level from Google Places
       if (placeDetails.priceLevel) {
@@ -137,7 +141,7 @@ export default function AddPlaceModal({
         lat: latitude,
         lng: longitude,
         address: placeDetails?.address || null,
-        photo_url: placeDetails?.photos?.[0] || null,
+        photo_url: selectedPhoto || placeDetails?.photos?.[0] || null,
         google_place_id: placeDetails?.place_id || null,
         rating: placeDetails?.rating > 0 ? placeDetails.rating : null,
         price_level: priceLevel >= 1 && priceLevel <= 4 ? priceLevel : null,
@@ -156,6 +160,7 @@ export default function AddPlaceModal({
       setComment('');
       setSelectedCategory('');
       setPriceLevel(0);
+      setSelectedPhoto(null);
 
       onPlaceAdded?.();
       onClose();
@@ -216,17 +221,36 @@ export default function AddPlaceModal({
           {/* Place Photos */}
           {placeDetails?.photos && placeDetails.photos.length > 0 && (
             <div>
-              <label className="text-label block mb-2">Google Photos</label>
+              <label className="text-label block mb-2">Photo</label>
+              <p className="text-xs text-ocean-grey mb-2 font-sans">Tap the photo you want for this place.</p>
               <div className="grid grid-cols-3 gap-2">
-                {placeDetails.photos.map((photo: string, index: number) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-sea-mist">
-                    <img
-                      src={photo}
-                      alt={`Place photo ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
+                {placeDetails.photos.map((photo: string, index: number) => {
+                  const isSelected = selectedPhoto === photo;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setSelectedPhoto(photo)}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                        isSelected ? 'border-primary shadow-rustic-md' : 'border-sea-mist hover:border-stone-blue opacity-80 hover:opacity-100'
+                      }`}
+                      aria-label={`Choose photo ${index + 1}`}
+                      aria-pressed={isSelected}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo}
+                        alt={`Place photo ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-rustic-md">
+                          <Check size={12} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

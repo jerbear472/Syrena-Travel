@@ -273,7 +273,7 @@ const MapView = ({ isAuthenticated: isAuthProp = false, center: centerProp, onMa
             name: placeDetails.name || '',
             rating: placeDetails.rating || 0,
             priceLevel: placeDetails.price_level || 0,
-            photos: placeDetails.photos?.slice(0, 3).map(photo => photo.getUrl({ maxWidth: 400 })) || [],
+            photos: placeDetails.photos?.slice(0, 6).map(photo => photo.getUrl({ maxWidth: 800 })) || [],
             types: placeDetails.types || [],
             address: placeDetails.formatted_address || '',
             businessStatus: placeDetails.business_status
