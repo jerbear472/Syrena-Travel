@@ -658,29 +658,19 @@ export default function Guide({
           <div className="space-y-6">
             {messages.map((msg) =>
               msg.role === 'user' ? (
-                <div key={msg.id} className="flex justify-end animate-slide-up">
-                  <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-br-md bg-primary text-white shadow-rustic-md">
-                    <p className="text-sm font-sans leading-relaxed">{msg.content}</p>
-                  </div>
+                <div key={msg.id} className="flex justify-end animate-fade-in">
+                  <p className="max-w-[85%] text-sm font-serif italic text-driftwood text-right leading-relaxed">
+                    — {msg.content}
+                  </p>
                 </div>
               ) : (
-                <div key={msg.id} className="animate-slide-up">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 shadow-rustic-sm">
-                      <Image
-                        src="/pocket-compass-star.png"
-                        alt="The Guide"
-                        width={32}
-                        height={32}
-                        className="object-cover w-full h-full"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="p-5 rounded-2xl rounded-tl-md bg-gradient-to-br from-off-white to-accent-subtle/60 border-2 border-sea-mist">
-                        <p className="font-serif text-[15px] text-ocean-depth leading-relaxed whitespace-pre-line">
-                          {msg.content}
-                        </p>
-                      </div>
+                <div key={msg.id} className="animate-tab-enter">
+                  <div className="p-6 rounded-xl bg-gradient-to-br from-off-white to-accent-subtle/60 border-2 border-sea-mist">
+                    <p className="font-serif text-lg text-ocean-depth leading-relaxed italic whitespace-pre-line">
+                      "{msg.content}"
+                    </p>
+                  </div>
+                  <div>
 
                       {/* Inline place cards */}
                       {msg.places && msg.places.length > 0 && (
@@ -707,9 +697,8 @@ export default function Guide({
                         </div>
                       )}
 
-                      {/* Itinerary draft card */}
-                      {msg.itineraryDraft && renderItineraryDraft(msg)}
-                    </div>
+                    {/* Itinerary draft card */}
+                    {msg.itineraryDraft && renderItineraryDraft(msg)}
                   </div>
                 </div>
               )
@@ -717,21 +706,22 @@ export default function Guide({
 
             {/* Thinking indicator */}
             {loading && (
-              <div className="flex items-start gap-3 animate-fade-in">
-                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 shadow-rustic-sm">
-                  <Image
-                    src="/pocket-compass-star.png"
-                    alt="Thinking"
-                    width={32}
-                    height={32}
-                    className="object-cover w-full h-full animate-gentle-pulse"
-                  />
+              <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+                <div className="relative mb-5">
+                  <div className="w-14 h-14 rounded-full overflow-hidden shadow-rustic-lg">
+                    <Image
+                      src="/pocket-compass-star.png"
+                      alt="Thinking"
+                      width={56}
+                      height={56}
+                      className="object-cover w-full h-full animate-gentle-pulse"
+                    />
+                  </div>
+                  <div className="absolute -inset-1 rounded-full border-2 border-accent/40 animate-[spin_3s_linear_infinite]" style={{ borderTopColor: 'transparent' }} />
                 </div>
-                <div className="px-5 py-4 rounded-2xl rounded-tl-md bg-off-white border-2 border-sea-mist">
-                  <p className="text-sm text-ocean-grey font-serif italic">
-                    {thinkingSet[thinkingLine] || MUSING_LINES[0]}
-                  </p>
-                </div>
+                <p className="text-ocean-grey font-serif italic text-center">
+                  {thinkingSet[thinkingLine] || MUSING_LINES[0]}
+                </p>
               </div>
             )}
           </div>
@@ -761,7 +751,7 @@ export default function Guide({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder={messages.length === 0 ? "I'm in Williamsburg, Brooklyn…" : 'Keep the conversation going…'}
+              placeholder={messages.length === 0 ? "I'm in Williamsburg, Brooklyn…" : 'Refine, ask for more, or keep planning…'}
               className="input-clean pl-12 pr-14 py-4 text-base"
               disabled={loading}
             />
